@@ -48,6 +48,23 @@ def find_contiguous_up_and_down_segments(bit_ts):
     return cont_up_segments, cont_down_segments
 
 def generate_state_bit_timeseries_from_dataframe(df, state, dt=1):
+    """
+    Generate a time series of UP and DOWN states from a dataframe.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        A dataframe containing the start and end times of UP and DOWN segments.
+    state : int
+        The state to generate the time series for. Must be either _UP or _DOWN.
+    dt : float
+        The time step to use for the time series.
+
+    Returns
+    -------
+    output : array_like
+        The time series of UP and DOWN states.
+    """
     assert state in [_UP, _DOWN], "state must be either _UP or _DOWN"
     inv_state = _DOWN if state == _UP else _UP
 
