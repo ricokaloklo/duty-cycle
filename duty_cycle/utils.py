@@ -1,6 +1,21 @@
 from .simulate import _UP, _DOWN
 
 def find_contiguous_up_and_down_segments(simulation_output):
+    """
+    Find contiguous UP and DOWN segments in the simulation output.
+
+    Parameters
+    ----------
+    simulation_output : array_like
+        The simulation output.
+    
+    Returns
+    -------
+    cont_up_segments : list
+        A list of lists where each sublist contains the start and end indices of a contiguous UP segment.
+    cont_down_segments : list
+        A list of lists where each sublist contains the start and end indices of a contiguous DOWN segment.
+    """
     cont_up_segments = []
     cont_down_segments = []
 
