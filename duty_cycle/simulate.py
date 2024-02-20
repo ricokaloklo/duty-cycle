@@ -77,7 +77,7 @@ def simulate_duty_cycle(simulation_params, N=1000, random_seed=None):
         if output[idx-1] == _UP:
             # In the previous time step, the detector is UP
 
-            # Compute 1 - p_cont_up
+            # Compute p_cont_up
             # NOTE Here idx_lastup means the first index where the detector was UP
             p_cont_up = 1 - sigmoid(
                 (idx-idx_lastup)*dt,
