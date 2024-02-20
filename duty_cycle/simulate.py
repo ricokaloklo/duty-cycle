@@ -11,6 +11,14 @@ _param_names = [
     "k_cont_up",
     "k_cont_down",
 ]
+_param_labels = [
+    r"$\mu_{\tau_{\rm cont;up}}$",
+    r"$\sigma_{\tau_{\rm cont;up}}$",
+    r"$\mu_{\tau_{\rm cont;down}}$",
+    r"$\sigma_{\tau_{\rm cont;down}}$",
+    r"$k_{\rm cont;up}$",
+    r"$k_{\rm cont;down}$",
+]
 
 def sigmoid(x, x0=0.5, k=1):
     """
