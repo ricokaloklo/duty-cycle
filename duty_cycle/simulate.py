@@ -25,6 +25,22 @@ def sigmoid(x, x0=0.5, k=1):
         The point of which sigmoid(x0)=1/2.
     k : float, optional
         The steepness of the sigmoid function.
+
+    Returns
+    -------
+    output : float or array-like
+        The output of the sigmoid function.
+
+    Raises
+    ------
+    ValueError
+        If the input x is not between 0 and 1.
+    
+    Notes
+    -----
+    This sigmoid function is basically applying an inverse logistic
+    function to the input x, then feeding the output to the standard
+    logistic function.
     """
     if np.any(x < 0) or np.any(x > 1):
         raise ValueError("Input x must be between 0 and 1.")
