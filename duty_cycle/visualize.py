@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from .simulate import _UP, _DOWN
+from . import _UP, _DOWN
 from .utils import find_contiguous_up_and_down_segments
 
 def visualize_duty_cycle(bit_ts, use_tex=True):

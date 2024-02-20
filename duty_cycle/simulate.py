@@ -1,8 +1,7 @@
 import numpy as np
 import torch
 
-_UP = 1 # Detector is in observation-intent/science mode
-_DOWN = 0 # Detector is NOT in observation-intent/science mode
+from . import _UP, _DOWN
 
 _param_names = [
     "mean_cont_up_time",

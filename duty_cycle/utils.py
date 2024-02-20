@@ -1,4 +1,4 @@
-from .simulate import _UP, _DOWN
+from . import _UP, _DOWN
 
 def find_contiguous_up_and_down_segments(bit_ts):
     """
