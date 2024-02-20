@@ -17,6 +17,7 @@ setuptools.setup(
         "torch",
         "gwpy",
         "sbi",
+        "gwsumm",
     ],
     classifiers=[
         "License :: OSI Approved :: MIT License",
