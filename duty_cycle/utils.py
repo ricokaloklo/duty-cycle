@@ -1,3 +1,5 @@
+import numpy as np
+
 from . import _UP, _DOWN
 
 def find_contiguous_up_and_down_segments(bit_ts):
@@ -44,3 +46,18 @@ def find_contiguous_up_and_down_segments(bit_ts):
         cont_down_segments.append([_idx, len(bit_ts)-1])
 
     return cont_up_segments, cont_down_segments
+
+def generate_state_bit_timeseries_from_dataframe(df, state, dt=1):
+    assert state in [_UP, _DOWN], "state must be either _UP or _DOWN"
+    inv_state = _DOWN if state == _UP else _UP
+
+    _st = df.iloc[0]["start_time"] # Start time for the entire dataframe
+    _et = df.iloc[-1]["end_time"] # End time for the entire dataframe
+
+    output = np.ones(int((_et - _st)/dt))*state
+    for i in range(len(df)-1):
+        _this_st = df.iloc[i]["end_time"]
+        _this_et = df.iloc[i+1]["start_time"]
+        output[int((_this_st-_st)/dt):int((_this_et-_st)/dt)] = inv_state
+
+    return output
