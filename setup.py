@@ -15,6 +15,7 @@ setuptools.setup(
         "pandas",
         "matplotlib",
         "torch",
+        "gwpy",
     ],
     classifiers=[
         "License :: OSI Approved :: MIT License",
