@@ -16,6 +16,7 @@ setuptools.setup(
         "matplotlib",
         "torch",
         "gwpy",
+        "sbi",
     ],
     classifiers=[
         "License :: OSI Approved :: MIT License",
