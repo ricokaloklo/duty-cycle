@@ -19,7 +19,7 @@ def make_histogram_bin_edges(nbin):
     # For now we only allow equal-width bins
     return np.histogram_bin_edges([], bins=nbin)
 
-def make_histograms(data, dt, bin_edges):
+def make_histograms(data, bin_edges, dt=1):
     """
     Make normalized histograms of continuous up and down times.
 
@@ -27,10 +27,10 @@ def make_histograms(data, dt, bin_edges):
     ----------
     data : array-like
         The data to make the histograms from.
-    dt : float
-        The time step.
     bin_edges : array-like
         The bin edges.
+    dt : float, optional
+        The time step. Default is 1.
     
     Returns
     -------
@@ -41,8 +41,8 @@ def make_histograms(data, dt, bin_edges):
         The binned continuous down times.
         Normalized so that the sum of the bins is 1.
     """
-    binned_cont_up_times = np.zero(len(bin_edges) - 1)
-    binned_cont_down_times = np.zero(len(bin_edges) - 1)
+    binned_cont_up_times = np.zeros(len(bin_edges) - 1)
+    binned_cont_down_times = np.zeros(len(bin_edges) - 1)
 
     for bit_ts in data:
         cont_up_time_idxs, cont_down_time_idxs = find_contiguous_up_and_down_segments(bit_ts)
