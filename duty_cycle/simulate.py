@@ -56,14 +56,8 @@ class DutyCycleSimulator(Simulator):
         output : array-like
             The simulated duty cycle.
         """
-        # Figure out whether we should cast the output to a torch tensor
         _use_torch = True if type(simulation_params) is torch.Tensor else False
-
-        # Unpack the simulation parameters
-        if _use_torch:
-            params = self.unpack_params(simulation_params, use_torch=True)
-        else:
-            params = self.unpack_params(simulation_params, use_torch=False)
+        params = self.unpack_params(simulation_params, use_torch=_use_torch)
 
         output = np.ones(self.N, dtype=int)*_DOWN
         # NOTE We start a simulation with the detector is the UP state
