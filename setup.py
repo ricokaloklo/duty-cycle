@@ -18,6 +18,7 @@ setuptools.setup(
         "gwpy",
         "sbi",
         "gwsumm",
+        "scikit-learn",
     ],
     classifiers=[
         "License :: OSI Approved :: MIT License",
