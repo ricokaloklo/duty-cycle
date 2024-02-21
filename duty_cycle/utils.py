@@ -53,13 +53,17 @@ def generate_state_bit_timeseries_from_dataframe(df, state, start_time=None, end
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        A dataframe containing the start and end times of UP and DOWN segments.
-    state : int
+    df: pandas.DataFrame
+        A dataframe containing the start and end times of UP and DOWN states.
+    state: int
         The state to generate the time series for. Must be either _UP or _DOWN.
-    dt : float
-        The time step to use for the time series.
-
+    start_time: float, optional
+        The start time of the time series. If None, the start time of the dataframe is used.
+    end_time: float, optional
+        The end time of the time series. If None, the end time of the dataframe is used.
+    dt: float, optional
+        The time step of the time series.
+    
     Returns
     -------
     output : array_like
