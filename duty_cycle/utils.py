@@ -47,7 +47,7 @@ def find_contiguous_up_and_down_segments(bit_ts):
 
     return cont_up_segments, cont_down_segments
 
-def generate_state_bit_timeseries_from_dataframe(df, state, dt=1):
+def generate_state_bit_timeseries_from_dataframe(df, state, start_time=None, end_time=None, dt=1):
     """
     Generate a time series of UP and DOWN states from a dataframe.
 
@@ -66,15 +66,20 @@ def generate_state_bit_timeseries_from_dataframe(df, state, dt=1):
         The time series of UP and DOWN states.
     """
     assert state in [_UP, _DOWN], "state must be either _UP or _DOWN"
-    inv_state = _DOWN if state == _UP else _UP
+    rev_state = _DOWN if state == _UP else _UP
 
-    _st = df.iloc[0]["start_time"] # Start time for the entire dataframe
-    _et = df.iloc[-1]["end_time"] # End time for the entire dataframe
+    if start_time is None:
+        start_time = df.iloc[0]["start_time"] # Start time for the entire dataframe
+    if end_time is None:
+        end_time = df.iloc[-1]["end_time"] # End time for the entire dataframe
 
-    output = np.ones(int((_et - _st)/dt)+1)*state
-    for i in range(len(df)-1):
-        _this_st = df.iloc[i]["end_time"]
-        _this_et = df.iloc[i+1]["start_time"]
-        output[int((_this_st-_st)/dt)+1:int((_this_et-_st)/dt)] = inv_state
+    output = np.ones(int((end_time - start_time)/dt)+1)*rev_state
+    start_idx = df[df["start_time"] >= start_time].index[0]
+    end_idx = df[df["end_time"] <= end_time].index[-1]
+
+    for i in range(start_idx, end_idx+1):
+        _st_idx = int((df.iloc[i]["start_time"]-start_time)/dt)
+        _et_idx = int((df.iloc[i]["end_time"]-start_time)/dt)+1
+        output[_st_idx:_et_idx] = state
 
     return output
