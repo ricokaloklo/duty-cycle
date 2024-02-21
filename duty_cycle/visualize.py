@@ -42,3 +42,30 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
     ax.set_xlabel(r"$t/T$")
     
     return fig
+
+def visualize_binned_data(binned_data, bin_edges, histtype="step", xlabel=r"$\tau/T$", use_tex=True):
+    if use_tex:
+        plt.rcParams.update({
+            "text.usetex": True,
+        })
+    else:
+        plt.rcParams.update({
+            "text.usetex": False,
+        })
+
+    assert histtype in ["step", "stepfilled"], "Only support histtype='step' or histtype='stepfilled'"
+    _filled = True if histtype == "stepfilled" else False
+
+    fig = plt.figure(dpi=150)
+    ax = fig.gca()
+
+    ax.stairs(
+        binned_data,
+        edges=bin_edges,
+        fill=_filled,
+    )
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(r"${\rm density}$")
+
+    return fig
