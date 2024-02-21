@@ -119,7 +119,4 @@ class DutyCycleSimulator(Simulator):
                     output[idx] = _UP
                     idx_lastup = idx
 
-        if _use_torch:
-            # Pack the output into a torch Tensor
-            output = torch.from_numpy(output)
         return output
