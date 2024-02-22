@@ -71,7 +71,7 @@ class Simulator:
 
         return cont_up_times, cont_down_times
 
-class SigmoidDropOffModel(Simulator):
+class SigmoidDropOffVLMC(Simulator):
     param_names = [
         "mean_cont_up_time",
         "std_cont_up_time",
