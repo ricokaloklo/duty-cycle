@@ -75,14 +75,21 @@ class DutyCycleSimulator(Simulator):
 
                 # Compute p_cont_up
                 # NOTE Here idx_lastup means the first index where the detector was UP
-                p_cont_up = 1 - sigmoid(
-                    (idx-idx_lastup)*dt,
-                    x0=np.random.normal(
-                        params["mean_cont_up_time"],
-                        params["std_cont_up_time"],
-                    ),
-                    k=params["k_cont_up"],
+                # Make a draw from the normal distribution
+                _cont_up_time = np.random.normal(
+                    params["mean_cont_up_time"],
+                    params["std_cont_up_time"],
                 )
+                if _cont_up_time < 0:
+                    p_cont_up = 0
+                elif _cont_up_time > 1:
+                    p_cont_up = 1
+                else:
+                    p_cont_up = 1 - sigmoid(
+                        (idx-idx_lastup)*dt,
+                        x0=_cont_up_time,
+                        k=params["k_cont_up"],
+                    )
 
                 if u < p_cont_up:
                     # In this time step, the detector remains UP
@@ -96,14 +103,21 @@ class DutyCycleSimulator(Simulator):
                 
                 # Compute p_cont_down
                 # NOTE Here idx_lastup means the last index where the detector was UP
-                p_cont_down = 1 - sigmoid(
-                    (idx-idx_lastup)*dt,
-                    x0=np.random.normal(
-                        params["mean_cont_down_time"],
-                        params["std_cont_down_time"],
-                    ),
-                    k=params["k_cont_down"],
+                # Make a draw from the normal distribution
+                _cont_down_time = np.random.normal(
+                    params["mean_cont_down_time"],
+                    params["std_cont_down_time"],
                 )
+                if _cont_down_time < 0:
+                    p_cont_down = 0
+                elif _cont_down_time > 1:
+                    p_cont_down = 1
+                else:
+                    p_cont_down = 1 - sigmoid(
+                        (idx-idx_lastup)*dt,
+                        x0=_cont_down_time,
+                        k=params["k_cont_down"],
+                    )
 
                 if u < p_cont_down:
                     # In this time step, the detector remains DOWN
