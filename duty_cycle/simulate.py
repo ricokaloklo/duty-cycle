@@ -26,6 +26,19 @@ class Simulator:
             return dict(zip(self.param_names, simulation_params))
 
     def simulate_duty_cycle(self, simulation_params):
+        """
+        Simulate the duty cycle of a detector.
+
+        Parameters
+        ----------
+        simulation_params : array-like
+            The parameters of the duty cycle model.
+
+        Returns
+        -------
+        output : array-like
+            The simulated duty cycle.
+        """
         raise NotImplementedError
 
     def simulate_cont_up_down_times(self, simulation_params, nsample=1000):
@@ -58,7 +71,7 @@ class Simulator:
 
         return cont_up_times, cont_down_times
 
-class DutyCycleSimulator(Simulator):
+class SigmoidDropOffModel(Simulator):
     param_names = [
         "mean_cont_up_time",
         "std_cont_up_time",
@@ -77,19 +90,6 @@ class DutyCycleSimulator(Simulator):
     ]
 
     def simulate_duty_cycle(self, simulation_params):
-        """
-        Simulate the duty cycle of a detector.
-
-        Parameters
-        ----------
-        simulation_params : array-like
-            The parameters of the duty cycle model.
-
-        Returns
-        -------
-        output : array-like
-            The simulated duty cycle.
-        """
         _use_torch = True if type(simulation_params) is torch.Tensor else False
         params = self.unpack_params(simulation_params, use_torch=_use_torch)
 
