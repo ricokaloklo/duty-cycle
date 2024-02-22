@@ -1,6 +1,4 @@
-import numpy as np
 from KDEpy import NaiveKDE
-import torch
 
 from .simulate import *
 
