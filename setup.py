@@ -18,7 +18,7 @@ setuptools.setup(
         "gwpy",
         "sbi",
         "gwsumm",
-        "scikit-learn",
+        "KDEpy",
     ],
     classifiers=[
         "License :: OSI Approved :: MIT License",
