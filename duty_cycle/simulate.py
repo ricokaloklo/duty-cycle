@@ -2,7 +2,11 @@ import numpy as np
 import torch
 
 from . import _UP, _DOWN
-from .utils import sigmoid
+from .utils import (
+    sigmoid,
+    find_contiguous_up_and_down_segments,
+    convert_start_end_indices_to_duration,
+)
 
 class Simulator:
     param_names = []
@@ -21,8 +25,38 @@ class Simulator:
         else:
             return dict(zip(self.param_names, simulation_params))
 
-    def simulate(self, simulation_params):
+    def simulate_duty_cycle(self, simulation_params):
         raise NotImplementedError
+
+    def simulate_cont_up_down_times(self, simulation_params, nsample=1000):
+        """
+        Simulate the contiguous up and down times of a detector.
+
+        Parameters
+        ----------
+        simulation_params : array-like
+            The parameters of the duty cycle model.
+        nsample : int, optional
+            The minimum number of samples to simulate.
+
+        Returns
+        -------
+        cont_up_times : array-like
+            The simulated contiguous up times.
+        cont_down_times : array-like
+            The simulated contiguous down times.
+        """
+        cont_up_times = []
+        cont_down_times = []
+
+        while len(cont_up_times) < nsample or len(cont_down_times) < nsample:
+            simulated_bit_ts = self.simulate_duty_cycle(simulation_params)
+            cont_up_time_idxs, cont_down_time_idxs = find_contiguous_up_and_down_segments(simulated_bit_ts)
+
+            cont_up_times += [convert_start_end_indices_to_duration(*idxs, dt=1./self.N) for idxs in cont_up_time_idxs]
+            cont_down_times += [convert_start_end_indices_to_duration(*idxs, dt=1./self.N) for idxs in cont_down_time_idxs]
+
+        return cont_up_times, cont_down_times
 
 class DutyCycleSimulator(Simulator):
     param_names = [
@@ -42,7 +76,7 @@ class DutyCycleSimulator(Simulator):
         r"$k_{\rm cont;down}$",
     ]
 
-    def simulate(self, simulation_params):
+    def simulate_duty_cycle(self, simulation_params):
         """
         Simulate the duty cycle of a detector.
 
