@@ -6,7 +6,7 @@ class JointIndependentDistribution:
         self.distributions = distributions
 
     def log_prob(self, x):
-        return sum(d.log_prob(x_i) for d, x_i in zip(self.distributions, x))
+        return sum([d.log_prob(x[:,i]) for i, d in enumerate(self.distributions)])
     
     def sample(self, sample_shape=torch.Size()):
         return torch.stack([d.sample(sample_shape) for d in self.distributions], dim=-1)
