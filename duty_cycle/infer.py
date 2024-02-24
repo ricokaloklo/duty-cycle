@@ -9,7 +9,7 @@ from .density import (
     make_histograms_from_data,
 )
 
-class Inference:
+class SimulationBasedInference:
     def __init__(
             self,
             simulator,
@@ -36,11 +36,16 @@ class Inference:
         # Grid points are the midpoints of the bin edges
         self.grid = (self.bin_edges[1:] + self.bin_edges[:-1])/2
 
-        if self.density_estimator == "kde":
-            self.simulator_for_sbi = lambda simulation_params: np.concatenate([kde(self.grid) for kde in make_kdes_from_simulation(self.simulator, simulation_params, self.nsample, **self.density_estimator_kwargs)])
-        else:
-            self.simulator_for_sbi = lambda simulation_params: np.concatenate(make_histograms_from_simulation(self.simulator, simulation_params, self.nsample, self.bin_edges))
         self.trained_posterior = None
+
+    @classmethod
+    def load_from_file(cls, filename):
+        with open(filename, "rb") as f:
+            return pickle.load(f)
+
+    def save_to_file(self, filename):
+        with open(filename, "wb") as f:
+            pickle.dump(self, f)
 
     def train(
             self,
@@ -48,8 +53,15 @@ class Inference:
             nsimulation=5000,
             ncore=1,
         ):
+
+        def simulator_for_sbi(simulation_params):
+            if self.density_estimator == "kde":
+                return np.concatenate([kde(self.grid) for kde in make_kdes_from_simulation(self.simulator, simulation_params, self.nsample, **self.density_estimator_kwargs)])
+            else:
+                return np.concatenate(make_histograms_from_simulation(self.simulator, simulation_params, self.nsample, self.bin_edges))
+
         self.trained_posterior = sbi_infer(
-            self.simulator_for_sbi,
+            simulator_for_sbi,
             self.prior,
             method=method,
             num_simulations=nsimulation,
