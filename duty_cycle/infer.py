@@ -40,25 +40,21 @@ class Inference:
         ]
 
         if self.density_estimator == "kde":
-            self.simulator_for_sbi = self.prepare_simulator_for_sbi_with_kde()
+            self.simulator_for_sbi = lambda simulation_params: np.concatenate([kde(self.grid) for kde in make_kdes_from_simulation(self.simulator, simulation_params, self.nsample, **self.density_estimator_kwargs)])
         else:
-            self.simulator_for_sbi = self.prepare_simulator_for_sbi_with_histogram()
+            self.simulator_for_sbi = lambda simulation_params: np.concatenate(make_histograms_from_simulation(self.simulator, simulation_params, self.nsample, self.bin_edges))
         self.trained_posterior = None
 
-        def prepare_simulator_for_sbi_with_kde(self):
-            # We need to evaluate the two KDEs at the grid points
-            # NOTE Lambda expression has to be 1-line
-            return lambda simulation_params: np.concatenate([kde(self.grid) for kde in make_kdes_from_simulation(self.simulator, simulation_params, self.nsample, **self.density_estimator_kwargs)])
-
-        def prepare_simulator_for_sbi_with_histogram(self):
-            # NOTE Lambda expression has to be 1-line
-            return lambda simulation_params: np.concatenate(make_histograms_from_simulation(self.simulator, simulation_params, self.nsample, self.bin_edges))
-
-        def train(self, nsimulation=5000, ncore=1):
+        def train(
+                self,
+                method="SNPE",
+                nsimulation=5000,
+                ncore=1,
+            ):
             self.trained_posterior = sbi_infer(
                 self.simulator_for_sbi,
                 self.prior,
-                method="SNPE",
+                method=method,
                 num_simulations=nsimulation,
                 num_workers=ncore,
             )
