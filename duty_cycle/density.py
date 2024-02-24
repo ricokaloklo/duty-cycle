@@ -116,13 +116,35 @@ def make_histograms_from_simulation(
     nsample=1000,
     bin_edges=None,
 ):
+    """
+    Make normalized histograms for the continuous up and down times
+    of a detector using simulated data.
+
+    Parameters
+    ----------
+    simulator : Simulator
+        The simulator object.
+    simulation_params : array-like
+        The parameters of the duty cycle model.
+    nsample : int, optional
+        The minimum number of samples to simulate.
+    bin_edges : array-like, optional
+        The bin edges to use for the histograms.
+
+    Returns
+    -------
+    cont_up_times_hist : array
+        The normalized histogram for the contiguous up times.
+    cont_down_times_hist : array
+        The normalized histogram for the contiguous down times.
+    """
     # Simulate the contiguous up and down times
     cont_up_times, cont_down_times = simulator.simulate_cont_up_down_times(
         simulation_params, nsample=nsample
     )
 
     # Make the density estimators
-    return make_kdes_from_data(
+    return make_histograms_from_data(
         cont_up_times,
         cont_down_times,
         bin_edges=bin_edges,
