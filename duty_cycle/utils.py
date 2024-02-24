@@ -1,6 +1,24 @@
 import numpy as np
+import torch
+from torch import distributions as dist
 
 from . import _UP, _DOWN
+
+# From https://github.com/pytorch/pytorch/issues/11412
+class LogUniform(dist.TransformedDistribution):
+    def __init__(self, low, high):
+        if type(low) is not torch.Tensor:
+            low = torch.tensor(low)
+        if type(high) is not torch.Tensor:
+            high = torch.tensor(high)
+
+        super(LogUniform, self).__init__(
+            dist.Uniform(
+                low.log(),
+                high.log()
+            ),
+            dist.ExpTransform()
+        )
 
 def sigmoid(x, x0=0.5, k=1):
     """
@@ -142,23 +160,3 @@ def convert_start_end_indices_to_duration(start_idx, end_idx, dt=1):
         The duration.
     """
     return (end_idx-start_idx)*dt
-
-def make_logspace_grid(ngridpoint=100, start=-2, stop=0):
-    """
-    Make a grid evenly spaced in log space between 10^start and 10^stop.
-
-    Parameters
-    ----------
-    ngridpoint : int, optional
-        The number of grid points.
-    start : int, optional
-        The start exponent.
-    stop : int, optional
-        The stop exponent.
-    
-    Returns
-    -------
-    output : array_like
-        The grid points.
-    """
-    return np.logspace(start, stop, ngridpoint, endpoint=False, base=10.0)
