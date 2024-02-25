@@ -83,7 +83,7 @@ class SigmoidDropOffVLMC(Simulator):
     param_labels = [
         r"$\mu\left(\tau_{\rm cont\;up}\right)$",
         r"$\sigma\left(\tau_{\rm cont\;up}\right)$",
-        r"$\mu\left({\tau_{\rm cont\;down}\right)$",
+        r"$\mu\left(\tau_{\rm cont\;down}\right)$",
         r"$\sigma\left(\tau_{\rm cont\;down}\right)$",
         r"$k_{\rm cont\;up}$",
         r"$k_{\rm cont\;down}$",
