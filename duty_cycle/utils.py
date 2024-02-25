@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import distributions as dist
+from torch.distributions import constraints
 
 from . import _UP, _DOWN
 
@@ -12,13 +13,20 @@ class LogUniform(dist.TransformedDistribution):
         if type(high) is not torch.Tensor:
             high = torch.tensor(high)
 
+        self.low = low
+        self.high = high
+
         super(LogUniform, self).__init__(
             dist.Uniform(
-                low.log(),
-                high.log()
+                self.low.log(),
+                self.high.log()
             ),
             dist.ExpTransform()
         )
+
+    @constraints.dependent_property(is_discrete=False, event_dim=0)
+    def support(self):
+        return constraints.interval(self.low, self.high)
 
 def sigmoid(x, x0=0.5, k=1):
     """
