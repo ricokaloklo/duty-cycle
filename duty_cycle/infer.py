@@ -115,7 +115,8 @@ class SimulationBasedInference:
         else:
             obs = np.concatenate(make_histograms_from_data(cont_up_times, cont_down_times, self.bin_edges))
 
-        posterior_samples = self.trained_posterior.sample((nposterior,), x=obs, sample_with_mcmc=True)
+        # NOTE Our prior is bounded
+        posterior_samples = self.trained_posterior.sample((nposterior,), x=obs)
         log_probs = self.trained_posterior.log_prob(posterior_samples, x=obs)
 
         return posterior_samples, log_probs
