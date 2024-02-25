@@ -53,6 +53,18 @@ class SimulationBasedInference:
             nsimulation=5000,
             ncore=1,
         ):
+        """
+        Train the posterior using the simulator.
+
+        Parameters
+        ----------
+        method : str, optional
+            The inference method to use. Default is "SNPE".
+        nsimulation : int, optional
+            The number of simulations to use for training the posterior.
+        ncore : int, optional
+            The number of cores to use for training the posterior.
+        """
 
         def simulator_for_sbi(simulation_params):
             if self.density_estimator == "kde":
