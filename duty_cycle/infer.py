@@ -119,3 +119,51 @@ class SimulationBasedInference:
         log_probs = self.trained_posterior.log_prob(posterior_samples, x=obs)
 
         return posterior_samples, log_probs
+
+    def plot_corner(
+        self,
+        posterior_samples,
+        filename="corner.png",
+        use_tex=False,
+        truths=None,
+    ):
+        """
+        Make a corner plot of the posterior samples.
+
+        Parameters
+        ----------
+        posterior_samples : array_like
+            The posterior samples.
+        filename : str, optional
+            The name of the file to save the corner plot to. Default is "corner.png".
+        use_tex : bool, optional
+            Whether to use TeX for the labels. Default is False.
+        truths : array_like, optional
+            The true values of the parameters. Default is None.
+        
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The corner plot.
+        """
+        from matplotlib import pyplot as plt
+        import corner
+        if use_tex:
+            plt.rcParams.update({
+                "text.usetex": True,
+            })
+        else:
+            plt.rcParams.update({
+                "text.usetex": False,
+            })
+
+        fig = corner.corner(
+            posterior_samples.numpy(),
+            labels=self.simulator.param_labels,
+            truths=truths,
+        )
+
+        if filename is not None:
+            fig.savefig(filename, dpi=300, bbox_inches="tight")
+
+        return fig
