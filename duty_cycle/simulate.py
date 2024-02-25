@@ -81,12 +81,12 @@ class SigmoidDropOffVLMC(Simulator):
         "k_cont_down",
     ]
     param_labels = [
-        r"$\mu_{\tau_{\rm cont;up}}$",
-        r"$\sigma_{\tau_{\rm cont;up}}$",
-        r"$\mu_{\tau_{\rm cont;down}}$",
-        r"$\sigma_{\tau_{\rm cont;down}}$",
-        r"$k_{\rm cont;up}$",
-        r"$k_{\rm cont;down}$",
+        r"$\mu_{\tau_{\rm cont\;up}}$",
+        r"$\sigma_{\tau_{\rm cont\;up}}$",
+        r"$\mu_{\tau_{\rm cont\;down}}$",
+        r"$\sigma_{\tau_{\rm cont\;down}}$",
+        r"$k_{\rm cont\;up}$",
+        r"$k_{\rm cont\;down}$",
     ]
 
     def simulate_duty_cycle(self, simulation_params):
