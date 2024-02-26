@@ -124,7 +124,7 @@ class SimulationBasedInference:
         assert nposterior > 0 and type(nposterior) is int, "nposterior must be a positive integer."
 
         if self.density_estimator == "kde":
-            obs = np.concatenate(make_kdes_from_data(cont_up_times, cont_down_times, **self.density_estimator_kwargs))
+            obs = np.concatenate([kde(self.grid) for kde in make_kdes_from_data(cont_up_times, cont_down_times, **self.density_estimator_kwargs)])
         else:
             obs = np.concatenate(make_histograms_from_data(cont_up_times, cont_down_times, self.bin_edges))
 
