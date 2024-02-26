@@ -8,7 +8,7 @@ from .density import (
     make_histograms_from_simulation,
     make_histograms_from_data,
 )
-from .utils import visualize_posterior
+from .visualize import visualize_posterior
 
 class SimulationBasedInference:
     def __init__(
