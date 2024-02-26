@@ -14,12 +14,12 @@ class SimulationBasedInference:
             self,
             simulator,
             prior,
-            density_estimator="histogram",
+            density_estimator="kde",
             density_estimator_kwargs={},
             nsample=1000,
             ngridpoint=50,
-            grid_range=(0, 1),
-            grid_spacing="linear",
+            grid_range=(1e-2, 1),
+            grid_spacing="log",
         ):
         self.simulator = simulator
         self.prior = prior
