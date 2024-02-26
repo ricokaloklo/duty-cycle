@@ -19,6 +19,7 @@ class SimulationBasedInference:
             nsample=1000,
             ngridpoint=50,
             grid_range=(0, 1),
+            grid_spacing="linear",
         ):
         self.simulator = simulator
         self.prior = prior
@@ -30,11 +31,23 @@ class SimulationBasedInference:
         self.nsample = nsample
         assert ngridpoint > 0 and type(ngridpoint) is int, "ngridpoint must be a positive integer."
         self.ngridpoint = ngridpoint
+
         # Set up the grid for evaluation
-        # Figure out the bin edges for histograms first
-        self.bin_edges = np.histogram_bin_edges([], bins=self.ngridpoint, range=grid_range)
-        # Grid points are the midpoints of the bin edges
-        self.grid = (self.bin_edges[1:] + self.bin_edges[:-1])/2
+        assert grid_spacing in ["linear", "log"], "Invalid grid spacing."
+
+        if grid_spacing == "linear":
+            # Figure out the bin edges for histograms first
+            self.bin_edges = np.histogram_bin_edges([], bins=self.ngridpoint, range=grid_range)
+            # Grid points are the midpoints of the bin edges
+            self.grid = (self.bin_edges[1:] + self.bin_edges[:-1])/2
+        else:
+            self.grid = np.geomspace(*grid_range, num=self.ngridpoint, endpoint=False)
+            # Figure out the corresponding "bin edges" for histograms
+            self.bin_edges = np.r_[
+                grid_range[0],
+                0.5*(self.grid[:-1] + self.grid[1:]),
+                grid_range[1]
+            ]
 
         self.trained_posterior = None
 
