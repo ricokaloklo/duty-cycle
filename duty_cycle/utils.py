@@ -168,3 +168,6 @@ def convert_start_end_indices_to_duration(start_idx, end_idx, dt=1):
         The duration.
     """
     return (end_idx-start_idx)*dt
+
+def calculate_duty_factor(bit_ts):
+    return len(bit_ts[bit_ts == _UP])/len(bit_ts)
