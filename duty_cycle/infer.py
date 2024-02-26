@@ -8,6 +8,7 @@ from .density import (
     make_histograms_from_simulation,
     make_histograms_from_data,
 )
+from .utils import visualize_posterior
 
 class SimulationBasedInference:
     def __init__(
@@ -160,24 +161,14 @@ class SimulationBasedInference:
         fig : matplotlib.figure.Figure
             The corner plot.
         """
-        from matplotlib import pyplot as plt
-        import corner
-        if use_tex:
-            plt.rcParams.update({
-                "text.usetex": True,
-            })
-        else:
-            plt.rcParams.update({
-                "text.usetex": False,
-            })
-
-        fig = corner.corner(
+        fig = visualize_posterior(
             posterior_samples.numpy(),
             labels=self.simulator.param_labels,
             truths=truths,
+            use_tex=use_tex,
         )
 
         if filename is not None:
-            fig.savefig(filename, dpi=300, bbox_inches="tight")
+            fig.savefig(filename, dpi=150, bbox_inches="tight")
 
         return fig

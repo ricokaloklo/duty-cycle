@@ -42,3 +42,30 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
     ax.set_xlabel(r"$t/T$")
     
     return fig
+
+def visualize_posterior(
+    posterior_samples,
+    labels=None,
+    use_tex=True,
+    truths=None,
+):
+    import corner
+    
+    if use_tex:
+        plt.rcParams.update({
+            "text.usetex": True,
+        })
+    else:
+        plt.rcParams.update({
+            "text.usetex": False,
+        })
+
+    fig = plt.figure(dpi=150)
+    fig = corner.corner(
+        posterior_samples,
+        labels=labels,
+        truths=truths,
+        fig=fig,
+    )
+
+    return fig
