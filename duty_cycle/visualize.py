@@ -60,7 +60,7 @@ def visualize_posterior(
             "text.usetex": False,
         })
 
-    fig = plt.figure(dpi=150)
+    fig = plt.figure(dpi=300)
     fig = corner.corner(
         posterior_samples,
         labels=labels,
