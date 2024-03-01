@@ -9,9 +9,9 @@ from duty_cycle.infer import SimulationBasedInference
 from duty_cycle.simulate import SigmoidDropOffVLMC
 
 # Set up the prior
-prior_mean_cont_up_time = LogUniform(torch.Tensor([0.1]), torch.Tensor([0.9]))
+prior_mean_cont_up_time = LogUniform(torch.Tensor([0.05]), torch.Tensor([0.9]))
 prior_std_cont_up_time = LogUniform(torch.Tensor([0.01]), torch.Tensor([0.5]))
-prior_mean_cont_down_time = LogUniform(torch.Tensor([0.1]), torch.Tensor([0.9]))
+prior_mean_cont_down_time = LogUniform(torch.Tensor([0.05]), torch.Tensor([0.9]))
 prior_std_cont_down_time = LogUniform(torch.Tensor([0.01]), torch.Tensor([0.5]))
 prior_k_cont_up = Uniform(torch.Tensor([1]), torch.Tensor([10]))
 prior_k_cont_down = Uniform(torch.Tensor([1]), torch.Tensor([10]))
