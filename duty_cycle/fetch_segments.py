@@ -6,7 +6,7 @@ from gwsumm.segments import get_segments
 _cont_up_times_filename_template = "{ifo}_cont_up_times_from_{start_time}_to_{end_time}.csv"
 _cont_down_times_filename_template = "{ifo}_cont_down_times_from_{start_time}_to_{end_time}.csv"
 
-# NOTE The following should work at least for O4
+# NOTE These should be the ones to use for O3&O4
 _default_flagname_dict = {
     "H1": "H1:DMT-ANALYSIS_READY:1",
     "L1": "L1:DMT-ANALYSIS_READY:1",
