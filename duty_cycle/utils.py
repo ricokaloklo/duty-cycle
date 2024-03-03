@@ -28,7 +28,7 @@ class LogUniform(dist.TransformedDistribution):
     def support(self):
         return constraints.interval(self.low, self.high)
 
-def sigmoid(x, x0=0.5, k=1):
+def sigmoid(x, x0=0.5, p0=0.5, k=1):
     """
     A sigmoid function where the input x is bounded between 0 and 1.
 
@@ -37,7 +37,7 @@ def sigmoid(x, x0=0.5, k=1):
     x : float or array-like
         The input to the sigmoid function.
     x0 : float, optional
-        The point of which sigmoid(x0)=1/2.
+        The point of which sigmoid(x0)=p0.
     k : float, optional
         The steepness of the sigmoid function.
 
@@ -59,7 +59,10 @@ def sigmoid(x, x0=0.5, k=1):
     """
     if np.any(x < 0) or np.any(x > 1):
         raise ValueError("Input x must be between 0 and 1.")
-    r = np.log(0.5)/np.log(x0)
+    
+    _kappa = (p0/(1. - p0))**(1./k)
+    _y0 = _kappa/(1. + _kappa)
+    r = np.log(_y0)/np.log(x0)
     xpowr = x**r
     return xpowr**k/(xpowr**k + (1.-xpowr)**k)
 
