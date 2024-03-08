@@ -16,6 +16,7 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
 
     fig = plt.figure(dpi=150)
     ax = fig.gca()
+    ax.set_aspect(0.3)
 
     cont_up_segments, cont_down_segments = find_contiguous_up_and_down_segments(bit_ts)
     N = len(bit_ts)
@@ -36,7 +37,7 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
         )
 
     ax.set_ylabel(r"${\rm detector\;state}$")
-    ax.set_yticks([_UP, _DOWN], ["UP", "DOWN"])
+    ax.set_yticks([_UP, _DOWN], [r"${\rm UP}$", r"${\rm DOWN}$"])
 
     ax.grid(alpha=0.5)
     ax.set_xlabel(r"$t/T$")
