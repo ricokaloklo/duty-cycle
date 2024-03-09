@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import corner
 
 from . import _UP, _DOWN
 from .utils import find_contiguous_up_and_down_segments
@@ -49,9 +50,14 @@ def visualize_posterior(
     labels=None,
     use_tex=True,
     truths=None,
+    **kwargs,
 ):
-    import corner
-    
+    _default_kwargs = {
+        "label_kwargs": {"fontsize": 8},
+        "labelpad": 0.25,
+    }
+    _default_kwargs.update(kwargs)
+
     if use_tex:
         plt.rcParams.update({
             "text.usetex": True,
@@ -67,6 +73,9 @@ def visualize_posterior(
         labels=labels,
         truths=truths,
         fig=fig,
+        **_default_kwargs,
     )
+    for ax in fig.get_axes():
+        ax.tick_params(axis="both", which="major", labelsize=_default_kwargs["label_kwargs"]["fontsize"])
 
     return fig
