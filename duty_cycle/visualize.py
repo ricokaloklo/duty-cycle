@@ -28,6 +28,7 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
             np.arange(up_segment[0], up_segment[1]+1, 1)/N, 
             bit_ts[up_segment[0]:up_segment[1]+1], 
             color="tab:green",
+            linewidth=3,
         )
     # Plot the DOWN segments
     for down_segment in cont_down_segments:
@@ -35,6 +36,7 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
             np.arange(down_segment[0], down_segment[1]+1, 1)/N, 
             bit_ts[down_segment[0]:down_segment[1]+1], 
             color="tab:red",
+            linewidth=3,
         )
 
     ax.set_ylabel(r"${\rm detector\;state}$")
