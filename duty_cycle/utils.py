@@ -38,6 +38,8 @@ def sigmoid(x, x0=0.5, p0=0.5, k=1):
         The input to the sigmoid function.
     x0 : float, optional
         The point of which sigmoid(x0)=p0.
+    p0 : float, optional
+        The value of the sigmoid function at x0.
     k : float, optional
         The steepness of the sigmoid function.
 
