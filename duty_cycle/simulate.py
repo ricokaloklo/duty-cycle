@@ -89,20 +89,29 @@ class SigmoidDropOffVLMC(Simulator):
         r"$k_{\rm cont\;down}$",
     ]
 
-    def simulate_duty_cycle(self, simulation_params):
+    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
         _use_torch = True if type(simulation_params) is torch.Tensor else False
         params = self.unpack_params(simulation_params, use_torch=_use_torch)
 
         output = np.ones(self.N, dtype=int)*_DOWN
-        # NOTE We start a simulation with the detector is the UP state
-        output[0] = _UP
-        # Make a draw from the normal distribution
-        _cont_up_time = np.random.normal(
-            params["mean_cont_up_time"],
-            params["std_cont_up_time"],
-        )
+        output[0] = initial_state
 
-        idx_lastup = 0
+        # Make a draw from the normal distribution if needed
+        if initial_state == _UP:
+            if cont_up_time is None:
+                cont_up_time = np.random.normal(
+                    params["mean_cont_up_time"],
+                    params["std_cont_up_time"],
+                )
+        elif initial_state == _DOWN:
+            if cont_down_time is None:
+                cont_down_time = np.random.normal(
+                    params["mean_cont_down_time"],
+                    params["std_cont_down_time"],
+                )
+        else:
+            raise ValueError("previous_state must be either _UP or _DOWN")
+
         dt = 1./self.N # Time step
 
         # NOTE We generate the simulated duty cycle sequentially
@@ -115,14 +124,14 @@ class SigmoidDropOffVLMC(Simulator):
 
                 # Compute p_cont_up
                 # NOTE Here idx_lastup means the first index where the detector was UP
-                if _cont_up_time < 0:
+                if cont_up_time < 0:
                     p_cont_up = 0
-                elif _cont_up_time > 1:
+                elif cont_up_time > 1:
                     p_cont_up = 1
                 else:
                     p_cont_up = 1 - sigmoid(
                         (idx-idx_lastup)*dt,
-                        x0=_cont_up_time,
+                        x0=cont_up_time,
                         k=params["k_cont_up"],
                     )
 
@@ -134,7 +143,7 @@ class SigmoidDropOffVLMC(Simulator):
                     output[idx] = _DOWN
                     idx_lastup = idx # This is the LAST index that the detector is UP
                     # Make a draw from the normal distribution
-                    _cont_down_time = np.random.normal(
+                    cont_down_time = np.random.normal(
                         params["mean_cont_down_time"],
                         params["std_cont_down_time"],
                     )
@@ -143,14 +152,14 @@ class SigmoidDropOffVLMC(Simulator):
                 
                 # Compute p_cont_down
                 # NOTE Here idx_lastup means the last index where the detector was UP
-                if _cont_down_time < 0:
+                if cont_down_time < 0:
                     p_cont_down = 0
-                elif _cont_down_time > 1:
+                elif cont_down_time > 1:
                     p_cont_down = 1
                 else:
                     p_cont_down = 1 - sigmoid(
                         (idx-idx_lastup)*dt,
-                        x0=_cont_down_time,
+                        x0=cont_down_time,
                         k=params["k_cont_down"],
                     )
 
@@ -162,7 +171,7 @@ class SigmoidDropOffVLMC(Simulator):
                     output[idx] = _UP
                     idx_lastup = idx
                     # Make a draw from the normal distribution
-                    _cont_up_time = np.random.normal(
+                    cont_up_time = np.random.normal(
                         params["mean_cont_up_time"],
                         params["std_cont_up_time"],
                     )
