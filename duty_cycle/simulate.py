@@ -12,8 +12,19 @@ class Simulator:
     param_names = []
     param_labels = []
 
-    def __init__(self, N=1000, random_seed=None):
-        self.N = N
+    def __init__(self, dt, nmax=1000, random_seed=None):
+        """
+        Parameters
+        ----------
+        dt : float
+            The time step of the simulation.
+        nmax : int, optional
+            The maximum number of time steps to simulate.
+        random_seed : int or None, optional
+            The random seed to use for the simulation. If None, no seed is set.
+        """
+        self.dt = dt
+        self.nmax = nmax
 
         # Set the random seed
         if random_seed is not None:
@@ -66,8 +77,8 @@ class Simulator:
             simulated_bit_ts = self.simulate_duty_cycle(simulation_params)
             cont_up_time_idxs, cont_down_time_idxs = find_contiguous_up_and_down_segments(simulated_bit_ts)
 
-            cont_up_times += [convert_start_end_indices_to_duration(*idxs, dt=1./self.N) for idxs in cont_up_time_idxs]
-            cont_down_times += [convert_start_end_indices_to_duration(*idxs, dt=1./self.N) for idxs in cont_down_time_idxs]
+            cont_up_times += [convert_start_end_indices_to_duration(*idxs, dt=self.dt) for idxs in cont_up_time_idxs]
+            cont_down_times += [convert_start_end_indices_to_duration(*idxs, dt=self.dt) for idxs in cont_down_time_idxs]
 
         return cont_up_times, cont_down_times
 
@@ -93,7 +104,7 @@ class SigmoidDropOffVLMC(Simulator):
         _use_torch = True if type(simulation_params) is torch.Tensor else False
         params = self.unpack_params(simulation_params, use_torch=_use_torch)
 
-        output = np.ones(self.N, dtype=int)*_DOWN
+        output = np.ones(self.nmax, dtype=int)*_DOWN
         output[0] = initial_state
 
         # Make a draw from the normal distribution if needed
@@ -112,10 +123,10 @@ class SigmoidDropOffVLMC(Simulator):
         else:
             raise ValueError("previous_state must be either _UP or _DOWN")
 
-        dt = 1./self.N # Time step
+        dt = self.dt # Time step
 
         # NOTE We generate the simulated duty cycle sequentially
-        for idx in range(1, self.N):
+        for idx in range(1, self.nmax):
             # Draw a random number ~U(0,1)
             u = np.random.rand()
 
@@ -175,5 +186,11 @@ class SigmoidDropOffVLMC(Simulator):
                         params["mean_cont_up_time"],
                         params["std_cont_up_time"],
                     )
+
+        # Truncate the output to the last UP/DN state change
+        last_change_idx = np.where(np.diff(output) != 0)[0]
+        if len(last_change_idx) > 0:
+            last_change_idx = last_change_idx[-1] + 1
+            output = output[:last_change_idx]
 
         return output

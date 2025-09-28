@@ -5,7 +5,7 @@ import corner
 from . import _UP, _DOWN
 from .utils import find_contiguous_up_and_down_segments
 
-def visualize_duty_cycle(bit_ts, use_tex=True):
+def visualize_duty_cycle(bit_ts, dt, use_tex=True):
     if use_tex:
         plt.rcParams.update({
             "text.usetex": True,
@@ -20,12 +20,11 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
     ax.set_aspect(0.3)
 
     cont_up_segments, cont_down_segments = find_contiguous_up_and_down_segments(bit_ts)
-    N = len(bit_ts)
     
     # Plot the UP segments
     for up_segment in cont_up_segments:
         ax.plot(
-            np.arange(up_segment[0], up_segment[1]+1, 1)/N, 
+            np.arange(up_segment[0], up_segment[1]+1, 1)*dt, 
             bit_ts[up_segment[0]:up_segment[1]+1], 
             color="tab:green",
             linewidth=3,
@@ -33,7 +32,7 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
     # Plot the DOWN segments
     for down_segment in cont_down_segments:
         ax.plot(
-            np.arange(down_segment[0], down_segment[1]+1, 1)/N, 
+            np.arange(down_segment[0], down_segment[1]+1, 1)*dt, 
             bit_ts[down_segment[0]:down_segment[1]+1], 
             color="tab:red",
             linewidth=3,
@@ -43,7 +42,7 @@ def visualize_duty_cycle(bit_ts, use_tex=True):
     ax.set_yticks([_UP, _DOWN], [r"${\rm UP}$", r"${\rm DOWN}$"])
 
     ax.grid(alpha=0.5)
-    ax.set_xlabel(r"$t/T$")
+    ax.set_xlabel(r"$t$")
     
     return fig
 
