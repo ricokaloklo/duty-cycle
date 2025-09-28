@@ -137,7 +137,7 @@ class SigmoidDropOffVLMC(Simulator):
                 # NOTE Here idx_lastup means the first index where the detector was UP
                 if cont_up_time < 0:
                     p_cont_up = 0
-                elif cont_up_time > 1:
+                elif cont_up_time > self.nmax*dt:
                     p_cont_up = 1
                 else:
                     p_cont_up = 1 - sigmoid(
@@ -165,7 +165,7 @@ class SigmoidDropOffVLMC(Simulator):
                 # NOTE Here idx_lastup means the last index where the detector was UP
                 if cont_down_time < 0:
                     p_cont_down = 0
-                elif cont_down_time > 1:
+                elif cont_down_time > self.nmax*dt:
                     p_cont_down = 1
                 else:
                     p_cont_down = 1 - sigmoid(

@@ -28,18 +28,19 @@ class LogUniform(dist.TransformedDistribution):
     def support(self):
         return constraints.interval(self.low, self.high)
 
-def sigmoid(x, x0=0.5, p0=0.5, k=1):
+def sigmoid(x, x0=0.5, k=1):
     """
-    A sigmoid function where the input x is bounded between 0 and 1.
+    A sigmoid function where the input x is semi-infinite from 0 to infinity
+    and the output sigmoid(x) is bounded between 0 and 1.
+
+    Note: this is also known as the log-logistic distribution.
 
     Parameters
     ----------
     x : float or array-like
         The input to the sigmoid function.
     x0 : float, optional
-        The point of which sigmoid(x0)=p0.
-    p0 : float, optional
-        The value of the sigmoid function at x0.
+        The point of which sigmoid(x0) = 0.5.
     k : float, optional
         The steepness of the sigmoid function.
 
@@ -51,7 +52,7 @@ def sigmoid(x, x0=0.5, p0=0.5, k=1):
     Raises
     ------
     ValueError
-        If the input x is not between 0 and 1.
+        If the input x is negative.
     
     Notes
     -----
@@ -59,14 +60,10 @@ def sigmoid(x, x0=0.5, p0=0.5, k=1):
     function to the input x, then feeding the output to the standard
     logistic function.
     """
-    if np.any(x < 0) or np.any(x > 1):
-        raise ValueError("Input x must be between 0 and 1.")
-    
-    _kappa = (p0/(1. - p0))**(1./k)
-    _y0 = _kappa/(1. + _kappa)
-    r = np.log(_y0)/np.log(x0)
-    xpowr = x**r
-    return xpowr**k/(xpowr**k + (1.-xpowr)**k)
+    if np.any(x < 0):
+        raise ValueError("Input x must be non-negative.")
+
+    return 1.0/(1 + (x/x0)**(-k))
 
 def find_contiguous_up_and_down_segments(bit_ts):
     """
