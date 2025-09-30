@@ -189,6 +189,48 @@ class IndependentUpDownSegments(Simulator):
 
         return output
 
+class MemorylessMonteCarlo(IndependentUpDownSegments):
+    param_names = [
+        "p_utd",
+        "p_dtu",
+    ]
+    param_labels = [
+        r"$p_{\rm up\;to\;down}$",
+        r"$p_{\rm down\;to\;up}$",
+    ]
+
+    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
+        _use_torch = True if type(simulation_params) is torch.Tensor else False
+        params = self.unpack_params(simulation_params, use_torch=_use_torch)
+
+        # Sanity check
+        assert 0 <= params["p_utd"] <= 1, "p_utd must be between 0 and 1"
+        assert 0 <= params["p_dtu"] <= 1, "p_dtu must be between 0 and 1"
+
+        # Define the functions needed for the simulation specifically for this model
+        def realize_cont_up():
+            return np.nan # Not used in this model
+        
+        def realize_cont_down():
+            return np.nan # Not used in this model
+
+        def transition_prob_utd(idx, idx_lastup, dt, cont_up_time):
+            return params["p_utd"]
+
+        def transition_prob_dtu(idx, idx_lastup, dt, cont_down_time):
+            return params["p_dtu"]
+        
+        return self._simulate(
+            realize_cont_up,
+            realize_cont_down,
+            transition_prob_utd,
+            transition_prob_dtu,
+            initial_state=initial_state,
+            idx_lastup=idx_lastup,
+            cont_up_time=cont_up_time,
+            cont_down_time=cont_down_time,
+        )
+
 class SigmoidDropOffVLMC(IndependentUpDownSegments):
     param_names = [
         "mean_cont_up_time",
