@@ -190,6 +190,15 @@ class IndependentUpDownSegments(Simulator):
         return output
 
 class MemorylessMonteCarlo(IndependentUpDownSegments):
+    """
+    Memoryless Monte Carlo simulation for duty cycles.
+
+    The model is defined by two parameters:
+    - p_utd: Probability of transitioning from UP to DOWN in each time step.
+    - p_dtu: Probability of transitioning from DOWN to UP in each time step.
+
+    The transitions are memoryless, meaning the probability of transitioning does not depend on how long the system has been in the current state.
+    """
     param_names = [
         "p_utd",
         "p_dtu",
@@ -231,7 +240,21 @@ class MemorylessMonteCarlo(IndependentUpDownSegments):
             cont_down_time=cont_down_time,
         )
 
+
 class SigmoidDropOffVLMC(IndependentUpDownSegments):
+    """
+    Sigmoid drop-off variable-length Markov chain (VLMC) simulation for duty cycles.
+    
+    The model is defined by six parameters:
+    - mean_cont_up_time: Mean contiguous up time.
+    - std_cont_up_time: Standard deviation of contiguous up time.
+    - mean_cont_down_time: Mean contiguous down time.
+    - std_cont_down_time: Standard deviation of contiguous down time.
+    - k_cont_up: Steepness of the sigmoid drop-off for up to down transitions
+    - k_cont_down: Steepness of the sigmoid drop-off for down to up transitions
+
+    The transitions depend on the time since the last state change, with probabilities defined by sigmoid functions.
+    """
     param_names = [
         "mean_cont_up_time",
         "std_cont_up_time",
