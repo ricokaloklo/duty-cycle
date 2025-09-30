@@ -82,7 +82,114 @@ class Simulator:
 
         return cont_up_times, cont_down_times
 
-class SigmoidDropOffVLMC(Simulator):
+class IndependentUpDownSegments(Simulator):
+    def _simulate(
+            self,
+            realize_cont_up,
+            realize_cont_down,
+            transition_prob_utd,
+            transition_prob_dtu,
+            initial_state=_UP,
+            idx_lastup=0,
+            cont_up_time=None,
+            cont_down_time=None
+        ):
+        """
+        Simulate the up and down segments of the duty cycle.
+
+        Parameters
+        ----------
+        realize_cont_up : function
+            A function that returns a random contiguous up time.
+        realize_cont_down : function
+            A function that returns a random contiguous down time.
+        transition_prob_utd : function
+            A function that returns the transition probability from up to down.
+        transition_prob_dtu : function
+            A function that returns the transition probability from down to up.
+        initial_state : int, optional
+            The initial state of the detector. Either _UP or _DOWN.
+        idx_lastup : int, optional
+            The index of the last time the detector was up.
+        cont_up_time : float or None, optional
+            The contiguous up time to use. If None, a new contiguous up time is drawn.
+        cont_down_time : float or None, optional
+            The contiguous down time to use. If None, a new contiguous down time is drawn.
+        
+        Returns
+        -------
+        output : array-like
+            The simulated duty cycle.
+        """
+
+        output = np.ones(self.nmax, dtype=int)*_DOWN
+        output[0] = initial_state
+
+        # Make a draw from the normal distribution if needed
+        if initial_state == _UP:
+            if cont_up_time is None:
+                cont_up_time = realize_cont_up()
+        elif initial_state == _DOWN:
+            if cont_down_time is None:
+                cont_down_time = realize_cont_down()
+        else:
+            raise ValueError("previous_state must be either _UP or _DOWN")
+
+        dt = self.dt # Time step
+
+        # NOTE We generate the simulated duty cycle sequentially
+        for idx in range(1, self.nmax):
+            # Draw a random number ~U(0,1)
+            u = np.random.rand()
+
+            if output[idx-1] == _UP:
+                # In the previous time step, the detector is UP
+
+                # Compute p_cont_up
+                # NOTE Here idx_lastup means the first index where the detector was UP
+                if cont_up_time < 0:
+                    p_cont_up = 0
+                else:
+                    p_cont_up = 1 - transition_prob_utd(idx, idx_lastup, dt, cont_up_time)
+
+                if u < p_cont_up:
+                    # In this time step, the detector remains UP
+                    output[idx] = _UP
+                else:
+                    # In this time step, the detector is no longer UP
+                    output[idx] = _DOWN
+                    idx_lastup = idx # This is the LAST index that the detector is UP
+                    # Make a draw from the normal distribution
+                    cont_down_time = realize_cont_down()
+            else:
+                # In the previous time step, the detector is DOWN
+                
+                # Compute p_cont_down
+                # NOTE Here idx_lastup means the last index where the detector was UP
+                if cont_down_time < 0:
+                    p_cont_down = 0
+                else:
+                    p_cont_down = 1 - transition_prob_dtu(idx, idx_lastup, dt, cont_down_time)
+
+                if u < p_cont_down:
+                    # In this time step, the detector remains DOWN
+                    output[idx] = _DOWN
+                else:
+                    # In this time step, the detector is no longer DOWN
+                    output[idx] = _UP
+                    idx_lastup = idx
+                    # Make a draw from the normal distribution
+                    cont_up_time = realize_cont_up()
+
+        # Truncate the output to the last UP/DN state change
+        last_change_idx = np.where(np.diff(output) != 0)[0]
+        if len(last_change_idx) > 0:
+            last_change_idx = last_change_idx[-1] + 1
+            output = output[:last_change_idx]
+
+        return output
+
+class SigmoidDropOffVLMC(IndependentUpDownSegments):
     param_names = [
         "mean_cont_up_time",
         "std_cont_up_time",
@@ -104,93 +211,40 @@ class SigmoidDropOffVLMC(Simulator):
         _use_torch = True if type(simulation_params) is torch.Tensor else False
         params = self.unpack_params(simulation_params, use_torch=_use_torch)
 
-        output = np.ones(self.nmax, dtype=int)*_DOWN
-        output[0] = initial_state
+        # Define the functions needed for the simulation specifically for this model
+        def realize_cont_up():
+            return np.random.normal(
+                params["mean_cont_up_time"],
+                params["std_cont_up_time"],
+            )
+        
+        def realize_cont_down():
+            return np.random.normal(
+                params["mean_cont_down_time"],
+                params["std_cont_down_time"],
+            )
 
-        # Make a draw from the normal distribution if needed
-        if initial_state == _UP:
-            if cont_up_time is None:
-                cont_up_time = np.random.normal(
-                    params["mean_cont_up_time"],
-                    params["std_cont_up_time"],
+        def transition_prob_utd(idx, idx_lastup, dt, cont_up_time):
+            return sigmoid(
+                (idx-idx_lastup)*dt,
+                x0=cont_up_time,
+                k=params["k_cont_up"],
+            )
+
+        def transition_prob_dtu(idx, idx_lastup, dt, cont_down_time):
+            return sigmoid(
+                    (idx-idx_lastup)*dt,
+                    x0=cont_down_time,
+                    k=params["k_cont_down"],
                 )
-        elif initial_state == _DOWN:
-            if cont_down_time is None:
-                cont_down_time = np.random.normal(
-                    params["mean_cont_down_time"],
-                    params["std_cont_down_time"],
-                )
-        else:
-            raise ValueError("previous_state must be either _UP or _DOWN")
-
-        dt = self.dt # Time step
-
-        # NOTE We generate the simulated duty cycle sequentially
-        for idx in range(1, self.nmax):
-            # Draw a random number ~U(0,1)
-            u = np.random.rand()
-
-            if output[idx-1] == _UP:
-                # In the previous time step, the detector is UP
-
-                # Compute p_cont_up
-                # NOTE Here idx_lastup means the first index where the detector was UP
-                if cont_up_time < 0:
-                    p_cont_up = 0
-                elif cont_up_time > self.nmax*dt:
-                    p_cont_up = 1
-                else:
-                    p_cont_up = 1 - sigmoid(
-                        (idx-idx_lastup)*dt,
-                        x0=cont_up_time,
-                        k=params["k_cont_up"],
-                    )
-
-                if u < p_cont_up:
-                    # In this time step, the detector remains UP
-                    output[idx] = _UP
-                else:
-                    # In this time step, the detector is no longer UP
-                    output[idx] = _DOWN
-                    idx_lastup = idx # This is the LAST index that the detector is UP
-                    # Make a draw from the normal distribution
-                    cont_down_time = np.random.normal(
-                        params["mean_cont_down_time"],
-                        params["std_cont_down_time"],
-                    )
-            else:
-                # In the previous time step, the detector is DOWN
-                
-                # Compute p_cont_down
-                # NOTE Here idx_lastup means the last index where the detector was UP
-                if cont_down_time < 0:
-                    p_cont_down = 0
-                elif cont_down_time > self.nmax*dt:
-                    p_cont_down = 1
-                else:
-                    p_cont_down = 1 - sigmoid(
-                        (idx-idx_lastup)*dt,
-                        x0=cont_down_time,
-                        k=params["k_cont_down"],
-                    )
-
-                if u < p_cont_down:
-                    # In this time step, the detector remains DOWN
-                    output[idx] = _DOWN
-                else:
-                    # In this time step, the detector is no longer DOWN
-                    output[idx] = _UP
-                    idx_lastup = idx
-                    # Make a draw from the normal distribution
-                    cont_up_time = np.random.normal(
-                        params["mean_cont_up_time"],
-                        params["std_cont_up_time"],
-                    )
-
-        # Truncate the output to the last UP/DN state change
-        last_change_idx = np.where(np.diff(output) != 0)[0]
-        if len(last_change_idx) > 0:
-            last_change_idx = last_change_idx[-1] + 1
-            output = output[:last_change_idx]
-
-        return output
+        
+        return self._simulate(
+            realize_cont_up,
+            realize_cont_down,
+            transition_prob_utd,
+            transition_prob_dtu,
+            initial_state=initial_state,
+            idx_lastup=idx_lastup,
+            cont_up_time=cont_up_time,
+            cont_down_time=cont_down_time,
+        )
