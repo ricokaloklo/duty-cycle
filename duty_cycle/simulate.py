@@ -85,8 +85,8 @@ class Simulator:
 class IndependentUpDownSegments(Simulator):
     def _simulate(
             self,
-            realize_cont_up,
-            realize_cont_down,
+            realize_cont_up_timescale,
+            realize_cont_down_timescale,
             transition_prob_utd,
             transition_prob_dtu,
             initial_state=_UP,
@@ -99,9 +99,9 @@ class IndependentUpDownSegments(Simulator):
 
         Parameters
         ----------
-        realize_cont_up : function
+        realize_cont_up_timescale : function
             A function that returns a random contiguous up time.
-        realize_cont_down : function
+        realize_cont_down_timescale : function
             A function that returns a random contiguous down time.
         transition_prob_utd : function
             A function that returns the transition probability from up to down.
@@ -128,10 +128,10 @@ class IndependentUpDownSegments(Simulator):
         # Make a draw from the normal distribution if needed
         if initial_state == _UP:
             if cont_up_time is None:
-                cont_up_time = realize_cont_up()
+                cont_up_time = realize_cont_up_timescale()
         elif initial_state == _DOWN:
             if cont_down_time is None:
-                cont_down_time = realize_cont_down()
+                cont_down_time = realize_cont_down_timescale()
         else:
             raise ValueError("previous_state must be either _UP or _DOWN")
 
@@ -160,7 +160,7 @@ class IndependentUpDownSegments(Simulator):
                     output[idx] = _DOWN
                     idx_lastup = idx # This is the LAST index that the detector is UP
                     # Make a draw from the normal distribution
-                    cont_down_time = realize_cont_down()
+                    cont_down_time = realize_cont_down_timescale()
             else:
                 # In the previous time step, the detector is DOWN
                 
@@ -179,7 +179,7 @@ class IndependentUpDownSegments(Simulator):
                     output[idx] = _UP
                     idx_lastup = idx
                     # Make a draw from the normal distribution
-                    cont_up_time = realize_cont_up()
+                    cont_up_time = realize_cont_up_timescale()
 
         # Truncate the output to the last UP/DN state change
         last_change_idx = np.where(np.diff(output) != 0)[0]
@@ -217,10 +217,10 @@ class MemorylessMarkovChain(IndependentUpDownSegments):
         assert 0 <= params["p_dtu"] <= 1, "p_dtu must be between 0 and 1"
 
         # Define the functions needed for the simulation specifically for this model
-        def realize_cont_up():
+        def realize_cont_up_timescale():
             return np.nan # Not used in this model
         
-        def realize_cont_down():
+        def realize_cont_down_timescale():
             return np.nan # Not used in this model
 
         def transition_prob_utd(idx, idx_lastup, dt, cont_up_time):
@@ -230,8 +230,8 @@ class MemorylessMarkovChain(IndependentUpDownSegments):
             return params["p_dtu"]
         
         return self._simulate(
-            realize_cont_up,
-            realize_cont_down,
+            realize_cont_up_timescale,
+            realize_cont_down_timescale,
             transition_prob_utd,
             transition_prob_dtu,
             initial_state=initial_state,
@@ -240,6 +240,68 @@ class MemorylessMarkovChain(IndependentUpDownSegments):
             cont_down_time=cont_down_time,
         )
 
+class DiscreteWeibullMarkovChain(IndependentUpDownSegments):
+    """
+    Markov chain simulation for duty cycles that gives Weibull-distributed contiguous up and down times.
+
+    The model is defined by four parameters:
+    - scale_up: Scale parameter for the Weibull distribution of contiguous up times.
+    - shape_up: Shape parameter for the Weibull distribution of contiguous up times.
+    - scale_down: Scale parameter for the Weibull distribution of contiguous down times.
+    - shape_down: Shape parameter for the Weibull distribution of contiguous down times.
+
+    The transitions depend on the time since the last state change, with probabilities defined by the discrete Weibull distribution.
+    """
+    param_names = [
+        "scale_up",
+        "shape_up",
+        "scale_down",
+        "shape_down",
+    ]
+    param_labels = [
+        r"$\lambda_{\rm up}$",
+        r"$k_{\rm up}$",
+        r"$\lambda_{\rm down}$",
+        r"$k_{\rm down}$",
+    ]
+
+    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
+        _use_torch = True if type(simulation_params) is torch.Tensor else False
+        params = self.unpack_params(simulation_params, use_torch=_use_torch)
+
+        # Sanity check
+        assert params["scale_up"] > 0, "scale_up must be positive"
+        assert params["shape_up"] > 0, "shape_up must be positive"
+        assert params["scale_down"] > 0, "scale_down must be positive"
+        assert params["shape_down"] > 0, "shape_down must be positive"
+
+        # Define the functions needed for the simulation specifically for this model
+        def realize_cont_up_timescale():
+            return np.nan # Not used in this model
+
+        def realize_cont_down_timescale():
+            return np.nan # Not used in this model
+        
+        def transition_prob_utd(idx, idx_lastup, dt, cont_up_time):
+            return 1 - np.exp(
+                -( (idx-idx_lastup)*dt / params["scale_up"] )**params["shape_up"] + ( (idx-1-idx_lastup)*dt / params["scale_up"] )**params["shape_up"]
+            )
+
+        def transition_prob_dtu(idx, idx_lastup, dt, cont_down_time):
+            return 1 - np.exp(
+                -( (idx-idx_lastup)*dt / params["scale_down"] )**params["shape_down"] + ( (idx-1-idx_lastup)*dt / params["scale_down"] )**params["shape_down"]
+            )
+
+        return self._simulate(
+            realize_cont_up_timescale,
+            realize_cont_down_timescale,
+            transition_prob_utd,
+            transition_prob_dtu,
+            initial_state=initial_state,
+            idx_lastup=idx_lastup,
+            cont_up_time=cont_up_time,
+            cont_down_time=cont_down_time,
+        )
 
 class SigmoidDropOffVLMC(IndependentUpDownSegments):
     """
@@ -277,13 +339,13 @@ class SigmoidDropOffVLMC(IndependentUpDownSegments):
         params = self.unpack_params(simulation_params, use_torch=_use_torch)
 
         # Define the functions needed for the simulation specifically for this model
-        def realize_cont_up():
+        def realize_cont_up_timescale():
             return np.random.normal(
                 params["mean_cont_up_time"],
                 params["std_cont_up_time"],
             )
         
-        def realize_cont_down():
+        def realize_cont_down_timescale():
             return np.random.normal(
                 params["mean_cont_down_time"],
                 params["std_cont_down_time"],
@@ -304,8 +366,8 @@ class SigmoidDropOffVLMC(IndependentUpDownSegments):
                 )
         
         return self._simulate(
-            realize_cont_up,
-            realize_cont_down,
+            realize_cont_up_timescale,
+            realize_cont_down_timescale,
             transition_prob_utd,
             transition_prob_dtu,
             initial_state=initial_state,
