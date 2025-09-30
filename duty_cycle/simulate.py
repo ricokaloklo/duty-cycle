@@ -189,9 +189,9 @@ class IndependentUpDownSegments(Simulator):
 
         return output
 
-class MemorylessMonteCarlo(IndependentUpDownSegments):
+class MemorylessMarkovChain(IndependentUpDownSegments):
     """
-    Memoryless Monte Carlo simulation for duty cycles.
+    Memoryless Markov chain simulation for duty cycles.
 
     The model is defined by two parameters:
     - p_utd: Probability of transitioning from UP to DOWN in each time step.
