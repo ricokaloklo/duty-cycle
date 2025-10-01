@@ -5,6 +5,7 @@ from . import _UP, _DOWN
 from .utils import find_contiguous_up_and_down_segments
 
 def visualize_duty_cycle(bit_ts, dt, use_tex=True):
+    original_rcParams = plt.rcParams.copy()
     if use_tex:
         plt.rcParams.update({
             "text.usetex": True,
@@ -14,9 +15,8 @@ def visualize_duty_cycle(bit_ts, dt, use_tex=True):
             "text.usetex": False,
         })
 
-    fig = plt.figure(dpi=150)
+    fig = plt.figure(dpi=150, figsize=(6, 2))
     ax = fig.gca()
-    ax.set_aspect(0.3)
 
     cont_up_segments, cont_down_segments = find_contiguous_up_and_down_segments(bit_ts)
     
@@ -26,7 +26,13 @@ def visualize_duty_cycle(bit_ts, dt, use_tex=True):
             np.arange(up_segment[0], up_segment[1]+1, 1)*dt, 
             bit_ts[up_segment[0]:up_segment[1]+1], 
             color="tab:green",
-            linewidth=3,
+            linewidth=2,
+        )
+        ax.fill_between(
+            np.arange(up_segment[0], up_segment[1]+1, 1)*dt,
+            0, 1,
+            color="tab:green",
+            alpha=0.3,
         )
     # Plot the DOWN segments
     for down_segment in cont_down_segments:
@@ -34,15 +40,22 @@ def visualize_duty_cycle(bit_ts, dt, use_tex=True):
             np.arange(down_segment[0], down_segment[1]+1, 1)*dt, 
             bit_ts[down_segment[0]:down_segment[1]+1], 
             color="tab:red",
-            linewidth=3,
+            linewidth=2,
+        )
+        ax.fill_between(
+            np.arange(down_segment[0], down_segment[1]+1, 1)*dt,
+            0, 1,
+            color="tab:red",
+            alpha=0.3,
         )
 
-    ax.set_ylabel(r"${\rm detector\;state}$")
+    ax.set_ylabel(r"${\rm detector\;state}$", fontsize=12)
     ax.set_yticks([_UP, _DOWN], [r"${\rm UP}$", r"${\rm DOWN}$"])
 
     ax.grid(alpha=0.5)
-    ax.set_xlabel(r"$t$")
-    
+    ax.set_xlabel(r"$t$", fontsize=12)
+
+    plt.rcParams = original_rcParams
     return fig
 
 def visualize_posterior(
