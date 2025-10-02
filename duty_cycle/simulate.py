@@ -240,9 +240,9 @@ class MemorylessMarkovChain(IndependentUpDownSegments):
             cont_down_time=cont_down_time,
         )
 
-class DiscreteWeibullMarkovChain(IndependentUpDownSegments):
+class DiscreteWeibullVLMC(IndependentUpDownSegments):
     """
-    Markov chain simulation for duty cycles that gives Weibull-distributed contiguous up and down times.
+    Variable length Markov chain simulation for duty cycles that gives Weibull-distributed contiguous up and down times.
 
     The model is defined by four parameters:
     - scale_up: Scale parameter for the Weibull distribution of contiguous up times.
