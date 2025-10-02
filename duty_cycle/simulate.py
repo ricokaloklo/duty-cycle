@@ -251,6 +251,8 @@ class DiscreteWeibullVLMC(IndependentUpDownSegments):
     - shape_down: Shape parameter for the Weibull distribution of contiguous down times.
 
     The transitions depend on the time since the last state change, with probabilities defined by the discrete Weibull distribution.
+    When shape=1, the distribution reduces to the exponential distribution, corresponding to a memoryless process.
+
     """
     param_names = [
         "scale_up",
