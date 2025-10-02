@@ -12,6 +12,7 @@ setuptools.setup(
     ],
     install_requires=[
         "numpy",
+        "scipy",
         "pandas",
         "matplotlib",
         "torch",
