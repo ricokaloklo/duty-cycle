@@ -244,11 +244,13 @@ class DiscreteWeibullVLMC(IndependentUpDownSegments):
     """
     Variable length Markov chain simulation for duty cycles that gives Weibull-distributed contiguous up and down times.
 
-    The model is defined by four parameters:
+    The model is defined by six parameters:
     - scale_up: Scale parameter for the Weibull distribution of contiguous up times.
     - shape_up: Shape parameter for the Weibull distribution of contiguous up times.
+    - initial_deadtime_up: Initial dead time after transitioning to UP state during which no further transitions can occur.
     - scale_down: Scale parameter for the Weibull distribution of contiguous down times.
     - shape_down: Shape parameter for the Weibull distribution of contiguous down times.
+    - initial_deadtime_down: Initial dead time after transitioning to DOWN state during which no further transitions can occur.
 
     The transitions depend on the time since the last state change, with probabilities defined by the discrete Weibull distribution.
     When shape=1, the distribution reduces to the exponential distribution, corresponding to a memoryless process.
@@ -257,14 +259,18 @@ class DiscreteWeibullVLMC(IndependentUpDownSegments):
     param_names = [
         "scale_up",
         "shape_up",
+        "initial_deadtime_up",
         "scale_down",
         "shape_down",
+        "initial_deadtime_down",
     ]
     param_labels = [
         r"$\lambda_{\rm up}$",
         r"$k_{\rm up}$",
+        r"$t_{\rm dead,up}$",
         r"$\lambda_{\rm down}$",
         r"$k_{\rm down}$",
+        r"$t_{\rm dead,down}$",
     ]
 
     def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
@@ -274,8 +280,10 @@ class DiscreteWeibullVLMC(IndependentUpDownSegments):
         # Sanity check
         assert params["scale_up"] > 0, "scale_up must be positive"
         assert params["shape_up"] > 0, "shape_up must be positive"
+        assert params["initial_deadtime_up"] >= 0, "initial_deadtime_up must be non-negative"
         assert params["scale_down"] > 0, "scale_down must be positive"
         assert params["shape_down"] > 0, "shape_down must be positive"
+        assert params["initial_deadtime_down"] >= 0, "initial_deadtime_down must be non-negative"
 
         # Define the functions needed for the simulation specifically for this model
         def realize_cont_up_timescale():
@@ -285,14 +293,22 @@ class DiscreteWeibullVLMC(IndependentUpDownSegments):
             return np.nan # Not used in this model
         
         def transition_prob_utd(idx, idx_lastup, dt, cont_up_time):
-            return 1 - np.exp(
-                -( (idx-idx_lastup)*dt / params["scale_up"] )**params["shape_up"] + ( (idx-1-idx_lastup)*dt / params["scale_up"] )**params["shape_up"]
-            )
+            idx_lastdead = int(np.floor(params["initial_deadtime_up"]/dt)) # This last index (relative to idx_lastup) where the detector is still dead
+            if (idx - idx_lastup) <= idx_lastdead:
+                return 0 # No transition possible during dead time
+            else:
+                return 1 - np.exp(
+                    -( ((idx-idx_lastup-idx_lastdead)*dt) / params["scale_up"] )**params["shape_up"] + ( ((idx-idx_lastup-idx_lastdead-1)*dt) / params["scale_up"] )**params["shape_up"]
+                )
 
         def transition_prob_dtu(idx, idx_lastup, dt, cont_down_time):
-            return 1 - np.exp(
-                -( (idx-idx_lastup)*dt / params["scale_down"] )**params["shape_down"] + ( (idx-1-idx_lastup)*dt / params["scale_down"] )**params["shape_down"]
-            )
+            idx_lastdead = int(np.floor(params["initial_deadtime_down"]/dt)) # This last index (relative to idx_lastup) where the detector is still dead
+            if (idx - idx_lastup) <= idx_lastdead:
+                return 0 # No transition possible during dead time
+            else:
+                return 1 - np.exp(
+                    -( ((idx-idx_lastup-idx_lastdead)*dt) / params["scale_down"] )**params["shape_down"] + ( ((idx-idx_lastup-idx_lastdead-1)*dt) / params["scale_down"] )**params["shape_down"]
+                )
 
         return self._simulate(
             realize_cont_up_timescale,
