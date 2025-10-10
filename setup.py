@@ -1,5 +1,6 @@
 import setuptools
 from pathlib import Path
+import glob
 
 setuptools.setup(
     name="duty-cycle",
@@ -23,7 +24,21 @@ setuptools.setup(
     ],
     package_data={
         "duty_cycle": [
-            "data/model.pkl",
+            'data/o1_H1_times.dat',
+            'data/o1_L1_times.dat',
+            'data/o2_H1_times.dat',
+            'data/o2_L1_times.dat',
+            'data/o2_V1_times.dat',
+            'data/o3a_H1_times.dat',
+            'data/o3a_L1_times.dat',
+            'data/o3a_V1_times.dat',
+            'data/o3b_H1_times.dat',
+            'data/o3b_L1_times.dat',
+            'data/o3b_V1_times.dat',
+            'data/o3gk_G1_times.dat',
+            'data/o3gk_K1_times.dat',
+            'data/o4a_H1_times.dat',
+            'data/o4a_L1_times.dat'
         ]
     },
     classifiers=[
