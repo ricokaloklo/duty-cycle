@@ -1,9 +1,9 @@
 import numpy as np
+import scipy.stats
 import torch
 
 from . import _UP, _DOWN
 from .utils import (
-    sigmoid,
     find_contiguous_up_and_down_segments,
     convert_start_end_indices_to_duration,
 )
