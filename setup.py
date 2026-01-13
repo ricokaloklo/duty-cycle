@@ -5,7 +5,7 @@ import glob
 setuptools.setup(
     name="duty-cycle",
     version="0.1.1",
-    description="Simulate duty cycles of a gravitational-wave detector",
+    description="Simulate duty cycles of a gravitational-wave detector network",
     long_description=Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
     packages=[
@@ -20,6 +20,7 @@ setuptools.setup(
         "gwpy",
         "sbi",
         "gwsumm",
+        "bilby",
         "KDEpy",
     ],
     package_data={
@@ -38,7 +39,7 @@ setuptools.setup(
             'data/o3gk_G1_times.dat',
             'data/o3gk_K1_times.dat',
             'data/o4a_H1_times.dat',
-            'data/o4a_L1_times.dat'
+            'data/o4a_L1_times.dat',
         ]
     },
     classifiers=[
