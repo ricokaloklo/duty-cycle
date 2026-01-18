@@ -1,0 +1,74 @@
+[
+    {
+        "name": "H1",
+        "location": {
+            "latitude": 46.45514666666667,
+            "longitude": -119.4076571388889
+        },
+        "comment": "coordiantes obtained from https://dcc.ligo.org/LIGO-T980044/public"
+    },
+    {
+        "name": "L1",
+        "location": {
+            "latitude": 30.562894333333332,
+            "longitude": -90.77424038888888
+        },
+        "comment": "https://dcc.ligo.org/LIGO-T980044/public"
+    },
+    {
+        "name": "V1",
+        "location": {
+            "latitude": 43.631414472222225,
+            "longitude": 10.504496611111112
+        },
+        "comment": "https://lscsoft.docs.ligo.org/lalsuite/lal/group___detector_constants.html"
+    },
+    {
+        "name": "K1",
+        "location": {
+            "latitude": 36.411860338888886,
+            "longitude": 137.30595603055556
+        },
+        "comment": "https://gwdoc.icrr.u-tokyo.ac.jp/DocDB/0093/G2000576/001/KAGRA_Detector_Coordinates_Ver_1.2.pdf"
+    },
+    {
+        "name": "I1",
+        "location": {
+            "latitude": 19.613306027777778,
+            "longitude": 77.03086102777777
+        },
+        "comment": "https://dcc.ligo.org/LIGO-T2000158/public"
+    },
+    {
+        "name": "ET-Sardinia",
+        "location": {
+            "latitude": 40.516666666666666,
+            "longitude": 9.416666666666666
+        },
+        "comment": "https://arxiv.org/abs/2303.15923"
+    },
+    {
+        "name": "ET-EMR",
+        "location": {
+            "latitude": 50.723055555555554,
+            "longitude": 5.920555555555556
+        },
+        "comment": "https://arxiv.org/abs/2303.15923"
+    },
+    {
+        "name": "CE-A",
+        "location": {
+            "latitude": 46.0,
+            "longitude": -125.0
+        },
+        "comment": "https://cosmicexplorer.org/celocations.html"
+    },
+    {
+        "name": "CE-B",
+        "location": {
+            "latitude": 29.0,
+            "longitude": -94.0
+        },
+        "comment": "https://cosmicexplorer.org/celocations.html"
+    }
+]
