@@ -1,6 +1,6 @@
 import pickle
 import numpy as np
-from sbi.inference.base import infer as sbi_infer
+from sbi.inference import infer as sbi_infer
 
 from .density import (
     make_kdes_from_simulation,
@@ -11,6 +11,54 @@ from .density import (
 from .visualize import visualize_posterior
 
 class SimulationBasedInference:
+    @classmethod
+    def load_from_file(cls, filename):
+        with open(filename, "rb") as f:
+            return pickle.load(f)
+
+    def save_to_file(self, filename):
+        with open(filename, "wb") as f:
+            pickle.dump(self, f)
+
+    def plot_corner(
+        self,
+        posterior_samples,
+        filename="corner.png",
+        use_tex=False,
+        truths=None,
+    ):
+        """
+        Make a corner plot of the posterior samples.
+
+        Parameters
+        ----------
+        posterior_samples : array_like
+            The posterior samples.
+        filename : str, optional
+            The name of the file to save the corner plot to. Default is "corner.png".
+        use_tex : bool, optional
+            Whether to use TeX for the labels. Default is False.
+        truths : array_like, optional
+            The true values of the parameters. Default is None.
+        
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The corner plot.
+        """
+        fig = visualize_posterior(
+            posterior_samples.numpy(),
+            labels=self.simulator.param_labels,
+            truths=truths,
+            use_tex=use_tex,
+        )
+
+        if filename is not None:
+            fig.savefig(filename)
+
+        return fig
+
+class SummaryStatisticInference(SimulationBasedInference):
     def __init__(
             self,
             simulator,
@@ -51,15 +99,6 @@ class SimulationBasedInference:
             ]
 
         self.trained_posterior = None
-
-    @classmethod
-    def load_from_file(cls, filename):
-        with open(filename, "rb") as f:
-            return pickle.load(f)
-
-    def save_to_file(self, filename):
-        with open(filename, "wb") as f:
-            pickle.dump(self, f)
 
     def train(
             self,
@@ -135,40 +174,5 @@ class SimulationBasedInference:
 
         return posterior_samples, log_probs
 
-    def plot_corner(
-        self,
-        posterior_samples,
-        filename="corner.png",
-        use_tex=False,
-        truths=None,
-    ):
-        """
-        Make a corner plot of the posterior samples.
-
-        Parameters
-        ----------
-        posterior_samples : array_like
-            The posterior samples.
-        filename : str, optional
-            The name of the file to save the corner plot to. Default is "corner.png".
-        use_tex : bool, optional
-            Whether to use TeX for the labels. Default is False.
-        truths : array_like, optional
-            The true values of the parameters. Default is None.
-        
-        Returns
-        -------
-        fig : matplotlib.figure.Figure
-            The corner plot.
-        """
-        fig = visualize_posterior(
-            posterior_samples.numpy(),
-            labels=self.simulator.param_labels,
-            truths=truths,
-            use_tex=use_tex,
-        )
-
-        if filename is not None:
-            fig.savefig(filename)
-
-        return fig
+class EmbeddingNetworkInference(SimulationBasedInference):
+    pass
