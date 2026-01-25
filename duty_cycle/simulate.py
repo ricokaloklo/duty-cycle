@@ -82,6 +82,62 @@ class Simulator:
         return cont_up_times, cont_down_times
 
 class IndependentUpDownSegments(Simulator):
+    @classmethod
+    def _simulate_step(
+        cls,
+        output,
+        dt,
+        idx,
+        idx_lastup,
+        cont_up_time,
+        cont_down_time,
+        transition_prob_utd,
+        transition_prob_dtu,
+        realize_cont_up_timescale,
+        realize_cont_down_timescale,
+    ):
+        _state = _UP
+        # Draw a random number ~U(0,1)
+        u = np.random.rand()
+        if output[idx-1] == _UP:
+            # In the previous time step, the detector is UP
+
+            # Compute p_cont_up
+            # NOTE Here idx_lastup means the first index where the detector was UP
+            if cont_up_time < 0:
+                p_cont_up = 0
+            else:
+                p_cont_up = 1 - transition_prob_utd(idx, idx_lastup, dt, cont_up_time)
+            if u < p_cont_up:
+                # In this time step, the detector remains UP
+                _state = _UP
+            else:
+                # In this time step, the detector is no longer UP
+                _state = _DOWN
+                idx_lastup = idx # This is the LAST index that the detector was UP
+                # Make a draw from the normal distribution
+                cont_down_time = realize_cont_down_timescale()
+        else:
+            # In the previous time step, the detector is DOWN
+
+            # Compute p_cont_down
+            # NOTE Here idx_lastup means the last index where the detector was UP
+            if cont_down_time < 0:
+                p_cont_down = 0
+            else:
+                p_cont_down = 1 - transition_prob_dtu(idx, idx_lastup, dt, cont_down_time)
+            if u < p_cont_down:
+                # In this time step, the detector remains DOWN
+                _state = _DOWN
+            else:
+                # In this time step, the detector is no longer DOWN
+                _state = _UP
+                idx_lastup = idx
+                # Make a draw from the normal distribution
+                cont_up_time = realize_cont_up_timescale()
+
+        return _state, idx_lastup, cont_up_time, cont_down_time
+
     def _simulate(
             self,
             realize_cont_up_timescale,
@@ -121,7 +177,7 @@ class IndependentUpDownSegments(Simulator):
             The simulated duty cycle.
         """
 
-        output = np.ones(self.nmax, dtype=int)*_DOWN
+        output = np.ones(self.nmax, dtype=int)*_UP
         output[0] = initial_state
 
         # Make a draw from the normal distribution if needed
@@ -138,47 +194,18 @@ class IndependentUpDownSegments(Simulator):
 
         # NOTE We generate the simulated duty cycle sequentially
         for idx in range(1, self.nmax):
-            # Draw a random number ~U(0,1)
-            u = np.random.rand()
-
-            if output[idx-1] == _UP:
-                # In the previous time step, the detector is UP
-
-                # Compute p_cont_up
-                # NOTE Here idx_lastup means the first index where the detector was UP
-                if cont_up_time < 0:
-                    p_cont_up = 0
-                else:
-                    p_cont_up = 1 - transition_prob_utd(idx, idx_lastup, dt, cont_up_time)
-
-                if u < p_cont_up:
-                    # In this time step, the detector remains UP
-                    output[idx] = _UP
-                else:
-                    # In this time step, the detector is no longer UP
-                    output[idx] = _DOWN
-                    idx_lastup = idx # This is the LAST index that the detector is UP
-                    # Make a draw from the normal distribution
-                    cont_down_time = realize_cont_down_timescale()
-            else:
-                # In the previous time step, the detector is DOWN
-                
-                # Compute p_cont_down
-                # NOTE Here idx_lastup means the last index where the detector was UP
-                if cont_down_time < 0:
-                    p_cont_down = 0
-                else:
-                    p_cont_down = 1 - transition_prob_dtu(idx, idx_lastup, dt, cont_down_time)
-
-                if u < p_cont_down:
-                    # In this time step, the detector remains DOWN
-                    output[idx] = _DOWN
-                else:
-                    # In this time step, the detector is no longer DOWN
-                    output[idx] = _UP
-                    idx_lastup = idx
-                    # Make a draw from the normal distribution
-                    cont_up_time = realize_cont_up_timescale()
+            output[idx], idx_lastup, cont_up_time, cont_down_time = self._simulate_step(
+                output,
+                dt,
+                idx,
+                idx_lastup,
+                cont_up_time,
+                cont_down_time,
+                transition_prob_utd,
+                transition_prob_dtu,
+                realize_cont_up_timescale,
+                realize_cont_down_timescale,
+            )
 
         # Truncate the output to the last UP/DN state change
         last_change_idx = np.where(np.diff(output) != 0)[0]
