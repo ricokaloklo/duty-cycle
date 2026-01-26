@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from . import _UP, _DOWN
 from .utils import (
@@ -30,9 +29,14 @@ class Simulator:
         if random_seed is not None:
             np.random.seed(random_seed)
 
-    def unpack_params(self, simulation_params, use_torch=False):
-        if use_torch:
-            return dict(zip(self.param_names, [p.item() for p in simulation_params]))
+    def unpack_params(self, simulation_params, use_torch=True):
+        import torch
+        if type(simulation_params) is torch.Tensor:
+            if use_torch:
+                return dict(zip(self.param_names, [p.item() for p in simulation_params]))
+            else:
+                # Move the tensor to CPU and detach it
+                return dict(zip(self.param_names, simulation_params.detach().cpu().numpy()))
         else:
             return dict(zip(self.param_names, simulation_params))
 
@@ -228,8 +232,7 @@ class MemorylessMarkovChain(IndependentUpDownSegments):
         return self.params["p_dtu"]
 
     def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
-        _use_torch = True if type(simulation_params) is torch.Tensor else False
-        self.params = self.unpack_params(simulation_params, use_torch=_use_torch)
+        self.params = self.unpack_params(simulation_params, use_torch=True)
 
         # Sanity check
         assert 0 <= self.params["p_utd"] <= 1, "p_utd must be between 0 and 1"
@@ -301,8 +304,7 @@ class WeibullVLMC(IndependentUpDownSegments):
             )
 
     def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
-        _use_torch = True if type(simulation_params) is torch.Tensor else False
-        self.params = self.unpack_params(simulation_params, use_torch=_use_torch)
+        self.params = self.unpack_params(simulation_params, use_torch=True)
 
         # Sanity check
         assert self.params["scale_up"] > 0, "scale_up must be positive"
