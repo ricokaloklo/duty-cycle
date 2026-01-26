@@ -25,6 +25,7 @@ setuptools.setup(
     ],
     package_data={
         "duty_cycle": [
+            'data/detector_loc.json',
             'data/o1_H1_times.dat',
             'data/o1_L1_times.dat',
             'data/o2_H1_times.dat',
