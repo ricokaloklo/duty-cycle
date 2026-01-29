@@ -11,21 +11,12 @@ class NetworkSimulator(Simulator):
         Parameters
         ----------
         components : dict
-            A dictionary where keys are component names and values are simulator objects.
+            A dictionary where keys are component names and values are simulator types.
         sep_char : str, optional
             A separator character used in naming components, by default '_'.
         """
-        self.components = components
+        self.components = {name: simulator(dt=self.dt, nmax=self.nmax) for name, simulator in components.items()}
         self.sep_char = sep_char
-
-        for component in self.components.values():
-            assert self.dt == component.dt, (
-                "All components in the network must have the same time resolution."
-            )
-            assert self.nmax == component.nmax, (
-                "All components in the network must have the same number of time steps."
-            )
-    
 
     def initialize_disturbances(self, disturbances):
         """
