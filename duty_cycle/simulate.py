@@ -29,6 +29,10 @@ class Simulator:
         if random_seed is not None:
             np.random.seed(random_seed)
 
+    @property
+    def duration(self):
+        return self.dt * self.nmax
+
     def unpack_params(self, simulation_params, use_torch=True):
         import torch
         if type(simulation_params) is torch.Tensor:
