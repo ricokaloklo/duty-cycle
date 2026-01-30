@@ -3,9 +3,9 @@ import numpy as np
 from . import _UP, _DOWN, _UNDEF
 from .simulate import Simulator, MemorylessMarkovChain
 
-class LocalExternalDisturbance(MemorylessMarkovChain):
+class PoissonProcessExternalDisturbance(MemorylessMarkovChain):
     """
-    If a local external disturbance is a Poisson process, then
+    If an external disturbance is a Poisson process, then
     it can be modeled as a memoryless Markov chain of Bernoulli trials.
 
     When the state is _UP, it means that the disturbance has been triggered,
@@ -18,12 +18,9 @@ class LocalExternalDisturbance(MemorylessMarkovChain):
     The transition probability from _UP to _DOWN = 1, since we assume
     that the disturbance only lasts for one time step.
     """
-    pass
+    truncate_output:bool = False
 
-class GlobalExternalDisturbance(MemorylessMarkovChain):
-    pass
-
-class TeleseismicActivity(GlobalExternalDisturbance):
+class TeleseismicActivity(PoissonProcessExternalDisturbance):
     """
     NOTE: For this one, we need to have a way to compute time delays
     between detectors based on their geographical locations. But if

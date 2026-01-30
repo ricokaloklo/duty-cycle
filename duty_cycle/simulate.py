@@ -9,8 +9,9 @@ from .utils import (
 class Simulator:
     param_names = []
     param_labels = []
+    truncate_output: bool = True
 
-    def __init__(self, dt, nmax=1000, random_seed=None, truncate_output=True):
+    def __init__(self, dt, nmax=1000, random_seed=None, truncate_output=None):
         """
         Parameters
         ----------
@@ -26,7 +27,9 @@ class Simulator:
         self.dt = dt
         self.nmax = nmax
         self.params = None
-        self.truncate_output = truncate_output
+        if truncate_output is not None:
+            # Override truncate_output only if provided
+            self.truncate_output = truncate_output
 
         # Set the random seed
         if random_seed is not None:
