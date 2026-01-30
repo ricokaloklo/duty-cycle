@@ -4,8 +4,6 @@ from . import _UP, _DOWN, _UNDEF
 from .simulate import Simulator
 
 class NetworkSimulator(Simulator):
-    components: dict = {}
-    disturbances: dict = {}
     sep_char: str = '^'
 
     @staticmethod
@@ -21,6 +19,13 @@ class NetworkSimulator(Simulator):
             for param_name, param_label in zip(component.param_names, component.param_labels):
                 self.param_names.append(self._get_full_param_name(param_name, name, self.sep_char))
                 self.param_labels.append(self._get_full_param_label(param_label, name, self.sep_char))
+
+    def __init__(self, **params):
+        super(NetworkSimulator, self).__init__(**params)
+        self.param_names = []
+        self.param_labels = []
+        self.components = {}
+        self.disturbances = {}
 
     def initialize_network(self, components, sep_char='^'):
         """
