@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from obspy.geodetics import gps2dist_azimuth
 
 from . import _UP, _DOWN, _UNDEF
@@ -19,7 +20,15 @@ class PoissonProcessExternalDisturbance(MemorylessMarkovChain):
     The transition probability from _UP to _DOWN = 1, since we assume
     that the disturbance only lasts for one time step.
     """
+    param_names = ["rate"]
+    param_labels = [r"$r$"]
     truncate_output:bool = False
+
+    def transition_prob_utd(self, idx, idx_lastup, dt, cont_up_time):
+        return 1.0
+
+    def transition_prob_dtu(self, idx, idx_lastup, dt, cont_down_time):
+        return self.params["rate"] / self.nmax
 
 class TeleseismicActivity(PoissonProcessExternalDisturbance):
     def compute_time_delay_steps(self, origin_coords, components_coords, speed):

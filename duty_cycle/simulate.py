@@ -260,10 +260,6 @@ class MemorylessMarkovChain(IndependentUpDownSegments):
     def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
         self.params = self.unpack_params(simulation_params, use_torch=True)
 
-        # Sanity check
-        assert 0 <= self.params["p_utd"] <= 1, "p_utd must be between 0 and 1"
-        assert 0 <= self.params["p_dtu"] <= 1, "p_dtu must be between 0 and 1"
-
         return self._simulate(
             initial_state=initial_state,
             idx_lastup=idx_lastup,
