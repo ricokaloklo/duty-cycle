@@ -4,14 +4,23 @@ from . import _UP, _DOWN, _UNDEF
 from .simulate import Simulator
 
 class NetworkSimulator(Simulator):
+    components: dict = {}
+    disturbances: dict = {}
+    sep_char: str = '^'
+
+    @staticmethod
+    def _get_full_param_name(param_name, component_name, sep_char):
+        return f"{param_name}{sep_char}{component_name}"
+    
+    @staticmethod
+    def _get_full_param_label(param_label, component_name, sep_char):
+        return param_label[:-1] + f"^{{\\rm {component_name}}}" + param_label[-1]
+
     def register_params(self, simulator_dict):
         for name, component in simulator_dict.items():
             for param_name, param_label in zip(component.param_names, component.param_labels):
-                full_param_name = f"{param_name}{self.sep_char}{name}"
-                self.param_names.append(full_param_name)
-                full_param_label = param_label[:-1] + f"^{{\\rm {name}}}" + param_label[-1]
-                self.param_labels.append(full_param_label)
-
+                self.param_names.append(self._get_full_param_name(param_name, name, self.sep_char))
+                self.param_labels.append(self._get_full_param_label(param_label, name, self.sep_char))
 
     def initialize_network(self, components, sep_char='^'):
         """
@@ -41,8 +50,18 @@ class NetworkSimulator(Simulator):
         self.register_params(self.disturbances)
 
     def unpack_params(self, simulation_params, use_torch=True):
+        if type(simulation_params) is list:
+            simulation_params = np.array(simulation_params)
+
         # Loop over components and disturbances to unpack parameters
-        pass
+        for name, component in list(self.components.items()) + list(self.disturbances.items()):
+            indices_to_extract = []
+            for _, param_name in enumerate(component.param_names):
+                full_param_name = self._get_full_param_name(param_name, name, self.sep_char)
+                if full_param_name in self.param_names:
+                    index = self.param_names.index(full_param_name)
+                    indices_to_extract.append(index)
+            component.params = component.unpack_params(simulation_params[indices_to_extract], use_torch=use_torch)
 
     def simulate_duty_cycle(self, simulation_params):
         """
