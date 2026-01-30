@@ -79,7 +79,7 @@ class NetworkSimulator(Simulator):
 
     def simulate_duty_cycle(self, simulation_params):
         """
-        Simulate the duty cycle of the network over time.
+        Simulate the duty cycle of the network.
         
         Parameters
         ----------
@@ -94,7 +94,61 @@ class NetworkSimulator(Simulator):
         return NotImplementedError
 
 class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
-    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
+    def _simulate_step_for_disturbances(
+            self,
+            output,
+            dt,
+            idx,
+    ):
+        pass
+
+    def simulate_duty_cycle(self, simulation_params, initial_state_list=_UP, idx_lastup_list=0, cont_up_time_list=None, cont_down_time_list=None):
+        """
+        Simulate the duty cycle of the network, with components having independent up/down segments.
+
+        Parameters
+        ----------
+        simulation_params : array-like
+            An array or list of simulation parameters.
+        initial_state_list : int or list of int, optional
+            A list of initial states for each component, by default _UP.
+        idx_lastup_list : int or list of int, optional
+            A list of indices of the last up state for each component, by default 0.
+        cont_up_time_list : float, None, list of float or list of None, optional
+            A list of continuous up times for each component, by default None.
+        cont_down_time_list : float, None, list of float or list of None, optional
+            A list of continuous down times for each component, by default None.
+
+        Returns
+        -------
+        output : dict
+            A dictionary containing the simulation results.
+        """
         self.unpack_params(simulation_params, use_torch=True)
 
-        pass
+        # Fill kwargs_dict for each component
+        kwargs_dict = {name: {} for name in self.components.keys()}
+        for name in self.components.keys():
+            if isinstance(initial_state_list, list):
+                kwargs_dict[name]['initial_state'] = initial_state_list[list(self.components.keys()).index(name)]
+            else:
+                kwargs_dict[name]['initial_state'] = initial_state_list
+
+            if isinstance(idx_lastup_list, list):
+                kwargs_dict[name]['idx_lastup'] = idx_lastup_list[list(self.components.keys()).index(name)]
+            else:
+                kwargs_dict[name]['idx_lastup'] = idx_lastup_list
+
+            if isinstance(cont_up_time_list, list):
+                kwargs_dict[name]['cont_up_time'] = cont_up_time_list[list(self.components.keys()).index(name)]
+            else:
+                kwargs_dict[name]['cont_up_time'] = cont_up_time_list
+
+            if isinstance(cont_down_time_list, list):
+                kwargs_dict[name]['cont_down_time'] = cont_down_time_list[list(self.components.keys()).index(name)]
+            else:
+                kwargs_dict[name]['cont_down_time'] = cont_down_time_list
+
+        output = {}
+
+        return kwargs_dict

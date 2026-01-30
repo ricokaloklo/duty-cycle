@@ -10,7 +10,7 @@ class Simulator:
     param_names = []
     param_labels = []
 
-    def __init__(self, dt, nmax=1000, random_seed=None):
+    def __init__(self, dt, nmax=1000, random_seed=None, truncate_output=True):
         """
         Parameters
         ----------
@@ -20,10 +20,13 @@ class Simulator:
             The maximum number of time steps to simulate.
         random_seed : int or None, optional
             The random seed to use for the simulation. If None, no seed is set.
+        truncate_output : bool, optional
+            Whether to truncate the output to the last UP/DOWN state change. By default True.
         """
         self.dt = dt
         self.nmax = nmax
         self.params = None
+        self.truncate_output = truncate_output
 
         # Set the random seed
         if random_seed is not None:
@@ -210,11 +213,12 @@ class IndependentUpDownSegments(Simulator):
                 cont_down_time,
             )
 
-        # Truncate the output to the last UP/DN state change
-        last_change_idx = np.where(np.diff(output) != 0)[0]
-        if len(last_change_idx) > 0:
-            last_change_idx = last_change_idx[-1] + 1
-            output = output[:last_change_idx]
+        if self.truncate_output:
+            # Truncate the output to the last UP/DN state change
+            last_change_idx = np.where(np.diff(output) != 0)[0]
+            if len(last_change_idx) > 0:
+                last_change_idx = last_change_idx[-1] + 1
+                output = output[:last_change_idx]
 
         return output
 
