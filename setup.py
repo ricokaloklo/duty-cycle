@@ -22,6 +22,7 @@ setuptools.setup(
         "gwsumm",
         "bilby",
         "KDEpy",
+        "obspy",
     ],
     package_data={
         "duty_cycle": [
