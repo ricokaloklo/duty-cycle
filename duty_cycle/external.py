@@ -1,16 +1,11 @@
 import numpy as np
 
-class ExternalDisturbance:
+from .simulate import Simulator, MemorylessMarkovChain
+
+class GlobalExternalDisturbance(MemorylessMarkovChain):
     pass
 
-class GlobalExternalDisturbance(ExternalDisturbance):
-    pass
-
-class ScheduledMaintenance(ExternalDisturbance):
-    """
-    NOTE: It requires the object to have knowledge of
-    the 'absolute' time in the simulation.
-    """
+class ScheduledMaintenance(Simulator):
     pass
 
 class TeleseismicActivity(GlobalExternalDisturbance):
