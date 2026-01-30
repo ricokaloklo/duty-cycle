@@ -34,6 +34,21 @@ class Simulator:
         return self.dt * self.nmax
 
     def unpack_params(self, simulation_params, use_torch=True):
+        """
+        Unpack the simulation parameters into a dictionary.
+
+        Parameters
+        ----------
+        simulation_params : array-like
+            The parameters of the duty cycle model.
+        use_torch : bool, optional
+            Whether to keep the parameters as torch tensors if they are provided as such. By default True.
+
+        Returns
+        -------
+        params_dict : dict
+            A dictionary mapping parameter names to their values.
+        """
         import torch
         if type(simulation_params) is torch.Tensor:
             if use_torch:

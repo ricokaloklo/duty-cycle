@@ -11,7 +11,7 @@ class NetworkSimulator(Simulator):
     @staticmethod
     def _get_full_param_name(param_name, component_name, sep_char):
         return f"{param_name}{sep_char}{component_name}"
-    
+
     @staticmethod
     def _get_full_param_label(param_label, component_name, sep_char):
         return param_label[:-1] + f"^{{\\rm {component_name}}}" + param_label[-1]
@@ -50,6 +50,20 @@ class NetworkSimulator(Simulator):
         self.register_params(self.disturbances)
 
     def unpack_params(self, simulation_params, use_torch=True):
+        """
+        Unpack simulation parameters for all components and disturbances in the network.
+
+        Parameters
+        ----------
+        simulation_params : array-like
+            An array or list of simulation parameters.
+        use_torch : bool, optional
+            Whether to keep the parameters as torch tensors if they are provided as such. By default True.
+
+        Returns
+        -------
+        None
+        """
         if type(simulation_params) is list:
             simulation_params = np.array(simulation_params)
 
@@ -80,4 +94,7 @@ class NetworkSimulator(Simulator):
         return NotImplementedError
 
 class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
-    pass
+    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
+        self.unpack_params(simulation_params, use_torch=True)
+
+        pass
