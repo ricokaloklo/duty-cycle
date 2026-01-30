@@ -1,6 +1,6 @@
 import numpy as np
 
-from . import _UP, _DOWN
+from . import _UP, _DOWN, _UNDEF
 from .utils import (
     find_contiguous_up_and_down_segments,
     convert_start_end_indices_to_duration,
@@ -100,11 +100,11 @@ class IndependentUpDownSegments(Simulator):
         cont_up_time,
         cont_down_time,
     ):
-        _state = _UP
+        _state = _UNDEF
         # Draw a random number ~U(0,1)
         u = np.random.rand()
         if output[idx-1] == _UP:
-            # In the previous time step, the detector is UP
+            # In the previous time step, the detector was UP
 
             # Compute p_cont_up
             # NOTE Here idx_lastup means the first index where the detector was UP
@@ -169,7 +169,7 @@ class IndependentUpDownSegments(Simulator):
             The simulated duty cycle.
         """
 
-        output = np.ones(self.nmax, dtype=int)*_UP
+        output = np.ones(self.nmax, dtype=int)*_UNDEF
         output[0] = initial_state
 
         # Make a draw from the normal distribution if needed

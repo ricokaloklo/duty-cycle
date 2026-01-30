@@ -1,6 +1,6 @@
 import numpy as np
 
-from . import _UP, _DOWN
+from . import _UP, _DOWN, _UNDEF
 from .simulate import Simulator
 
 class NetworkSimulator(Simulator):
@@ -31,7 +31,7 @@ class NetworkSimulator(Simulator):
         # Timeseries flags tracking the state of each disturbance over time
         # _UP means the disturbance is triggered, _DOWN means it is not triggered
         self.disturbances_flags = {
-            n : np.ones(self.nmax, dtype=int)*_DOWN
+            n : np.ones(self.nmax, dtype=int)*_UNDEF
             for n in range(len(disturbances))
         }
 
