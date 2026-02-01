@@ -4,8 +4,8 @@ import glob
 
 setuptools.setup(
     name="duty-cycle",
-    version="0.1.1",
-    description="Simulate duty cycles of a gravitational-wave detector",
+    version="0.2.0",
+    description="Simulate duty cycles of a gravitational-wave detector network",
     long_description=Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
     packages=[
@@ -20,10 +20,14 @@ setuptools.setup(
         "gwpy",
         "sbi",
         "gwsumm",
+        "bilby",
         "KDEpy",
+        "obspy",
     ],
     package_data={
         "duty_cycle": [
+            'data/detector_loc.json',
+            'data/USGS_EarthquakeCatalogFrom2025_MagnAbove5.csv',
             'data/o1_H1_times.dat',
             'data/o1_L1_times.dat',
             'data/o2_H1_times.dat',
@@ -38,7 +42,7 @@ setuptools.setup(
             'data/o3gk_G1_times.dat',
             'data/o3gk_K1_times.dat',
             'data/o4a_H1_times.dat',
-            'data/o4a_L1_times.dat'
+            'data/o4a_L1_times.dat',
         ]
     },
     classifiers=[

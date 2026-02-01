@@ -1,9 +1,36 @@
 import numpy as np
+import pandas as pd
 import torch
 from torch import distributions as dist
 from torch.distributions import constraints
+import os, pathlib
+import json
 
 from . import _UP, _DOWN
+
+def load_detector_coordinates():
+    det_locs_json_path = os.path.join(
+        pathlib.Path(__file__).resolve().parent,
+        "data/",
+        "detector_loc.json"
+    )
+    det_locs_list = json.load(open(det_locs_json_path, "r"))
+    det_locs = {}
+    for det in det_locs_list:
+        det_locs[det["name"]] = det["location"]
+
+    return det_locs
+
+detector_coordinates = load_detector_coordinates()
+
+def load_earthquake_catalog():
+    eq_catalog_csv_path = os.path.join(
+        pathlib.Path(__file__).resolve().parent,
+        "data/",
+        "USGS_EarthquakeCatalogFrom2025_MagnAbove5.csv"
+    )
+    eq_catalog = pd.read_csv(eq_catalog_csv_path)
+    return eq_catalog
 
 # From https://github.com/pytorch/pytorch/issues/11412
 class LogUniform(dist.TransformedDistribution):
