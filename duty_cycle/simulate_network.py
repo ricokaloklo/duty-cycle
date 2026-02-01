@@ -141,17 +141,19 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
             name: np.ones(self.nmax, dtype=int)*_UNDEF for name in list(self.components.keys()) + list(self.disturbances.keys())
         }
 
-        for name in list(self.components.keys()) + list(self.disturbances.keys()):
+        for name, component in list(self.components.items()) + list(self.disturbances.items()):
             # Initialize the output of each component with initial_state_list
+            if initial_state_list[name] is None:
+                initial_state_list[name] = component.default_initial_state
             output[name][0] = initial_state_list[name]
 
             # Make a draw from the normal distribution if needed
             if initial_state_list[name] == _UP:
                 if cont_up_time_list[name] is None:
-                    cont_up_time_list[name] = self.components[name].realize_cont_up_timescale()
+                    cont_up_time_list[name] = component.realize_cont_up_timescale()
             elif initial_state_list[name] == _DOWN:
                 if cont_down_time_list[name] is None:
-                    cont_down_time_list[name] = self.components[name].realize_cont_down_timescale()
+                    cont_down_time_list[name] = component.realize_cont_down_timescale()
             else:
                 raise ValueError("previous_state must be either _UP or _DOWN for {name}".format(name=name))
 
@@ -164,7 +166,7 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
 
         return output
 
-    def simulate_duty_cycle(self, simulation_params, initial_state_list=_UP, idx_lastchange_list=0, cont_up_time_list=None, cont_down_time_list=None):
+    def simulate_duty_cycle(self, simulation_params, initial_state_list=None, idx_lastchange_list=0, cont_up_time_list=None, cont_down_time_list=None):
         """
         Simulate the duty cycle of the network, with components having independent up/down segments.
 
@@ -172,8 +174,8 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
         ----------
         simulation_params : array-like
             An array or list of simulation parameters.
-        initial_state_list : int or list of int, optional
-            A list of initial states for each component, by default _UP.
+        initial_state_list : int, None or list of int or list of None, optional
+            A list of initial states for each component.
         idx_lastchange_list : int or list of int, optional
             A list of indices of the last up state for each component, by default 0.
         cont_up_time_list : float, None, list of float or list of None, optional
@@ -190,7 +192,7 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
 
         # Fill kwargs_dict for each component
         kwargs_dict = {p: {} for p in ['initial_state_list', 'idx_lastchange_list', 'cont_up_time_list', 'cont_down_time_list']}
-        for name in self.components.keys():
+        for name in list(self.components.keys()) + list(self.disturbances.keys()):
             if isinstance(initial_state_list, list):
                 kwargs_dict['initial_state_list'][name] = initial_state_list[list(self.components.keys()).index(name)]
             else:

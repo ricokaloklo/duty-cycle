@@ -166,7 +166,7 @@ class IndependentUpDownSegments(Simulator):
 
     def _simulate(
             self,
-            initial_state=_UP,
+            initial_state=None,
             idx_lastchange=0,
             cont_up_time=None,
             cont_down_time=None
@@ -190,6 +190,8 @@ class IndependentUpDownSegments(Simulator):
         output : array-like
             The simulated duty cycle.
         """
+        if initial_state is None:
+            initial_state = self.default_initial_state
 
         output = np.ones(self.nmax, dtype=int)*_UNDEF
         output[0] = initial_state
@@ -258,7 +260,9 @@ class MemorylessMarkovChain(IndependentUpDownSegments):
     def transition_prob_dtu(self, idx, idx_lastchange, dt, cont_down_time):
         return self.params["p_dtu"]
 
-    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastchange=0, cont_up_time=None, cont_down_time=None):
+    def simulate_duty_cycle(self, simulation_params, initial_state=None, idx_lastchange=0, cont_up_time=None, cont_down_time=None):
+        if initial_state is None:
+            initial_state = self.default_initial_state
         self.params = self.unpack_params(simulation_params, use_torch=True)
 
         return self._simulate(
@@ -326,7 +330,9 @@ class WeibullVLMC(IndependentUpDownSegments):
                 -( ((idx-idx_lastchange-idx_lastdead)*dt) / self.params["scale_down"] )**self.params["shape_down"] + ( ((idx-idx_lastchange-idx_lastdead-1)*dt) / self.params["scale_down"] )**self.params["shape_down"]
             )
 
-    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastchange=0, cont_up_time=None, cont_down_time=None):
+    def simulate_duty_cycle(self, simulation_params, initial_state=None, idx_lastchange=0, cont_up_time=None, cont_down_time=None):
+        if initial_state is None:
+            initial_state = self.default_initial_state
         self.params = self.unpack_params(simulation_params, use_torch=True)
 
         # Sanity check
