@@ -169,7 +169,27 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
             cont_up_time_dict,
             cont_down_time_dict,
     ):
-        pass
+        # If the current state is _UNDEF, then use the _simulate_step method
+        for name, component in self.components.items():
+            if output[name][idx] == _UNDEF:
+                output[name][idx], idx_lastchange_dict[name], cont_up_time_dict[name], cont_down_time_dict[name] = \
+                    component._simulate_step(
+                        output[name],
+                        dt,
+                        idx,
+                        idx_lastchange_dict[name],
+                        cont_up_time_dict[name],
+                        cont_down_time_dict[name],
+                    )
+            elif output[name][idx] == _DOWN:
+                # The component is forced down by a disturbance
+                # Update idx_lastchange_dict and cont_down_time_dict if needed
+                idx_lastchange_dict[name] = idx
+                cont_down_time_dict[name] = component.realize_cont_down_timescale()
+            else:
+                raise ValueError("The current state was set ahead of time unexpectedly.")
+            
+        return output, idx_lastchange_dict, cont_up_time_dict, cont_down_time_dict
 
     def _simulate(
             self,
@@ -213,6 +233,15 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
                     cont_down_time_dict,
                 )
             # Then simulate the components
+            output, idx_lastchange_dict, cont_up_time_dict, cont_down_time_dict = \
+                self._simulate_step_for_components(
+                    output,
+                    dt,
+                    idx,
+                    idx_lastchange_dict,
+                    cont_up_time_dict,
+                    cont_down_time_dict,
+                )
 
         return output
 
