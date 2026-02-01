@@ -4,6 +4,7 @@ from obspy.geodetics import gps2dist_azimuth
 
 from . import _UP, _DOWN, _UNDEF
 from .simulate import MemorylessMarkovChain
+from .utils import load_earthquake_catalog
 
 class PoissonProcessExternalDisturbance(MemorylessMarkovChain):
     """
@@ -31,6 +32,30 @@ class PoissonProcessExternalDisturbance(MemorylessMarkovChain):
         return self.params["rate"] / self.nmax
 
 class TeleseismicActivity(PoissonProcessExternalDisturbance):
+    def sample_origin_coords_from_file(self, filepath=None):
+        """
+        Draw a random sample of origin coordinates of teleseismic disturbances
+        from a CSV file containing historical earthquake data.
+
+        Parameters
+        ----------
+        filepath : str, optional
+            Path to the CSV file. If None, the default earthquake catalog is used.
+
+        Returns
+        -------
+        origins : a tuple
+            A sample of (latitude, longitude) tuple.
+        """
+        if filepath is None:
+            df = load_earthquake_catalog()
+        else:
+            df = pd.read_csv(filepath)
+
+        origins = list(zip(df['latitude'], df['longitude']))
+        sampled_origin = origins[np.random.randint(0, len(origins))]
+        return sampled_origin
+
     def compute_time_delay_steps(self, origin_coords, components_coords, speed):
         """
         Compute the time delay in number of steps for each component

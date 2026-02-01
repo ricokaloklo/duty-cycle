@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 from torch import distributions as dist
 from torch.distributions import constraints
@@ -21,6 +22,15 @@ def load_detector_coordinates():
     return det_locs
 
 detector_coordinates = load_detector_coordinates()
+
+def load_earthquake_catalog():
+    eq_catalog_csv_path = os.path.join(
+        pathlib.Path(__file__).resolve().parent,
+        "data/",
+        "USGS_EarthquakeCatalogFrom2025_MagnAbove5.csv"
+    )
+    eq_catalog = pd.read_csv(eq_catalog_csv_path)
+    return eq_catalog
 
 # From https://github.com/pytorch/pytorch/issues/11412
 class LogUniform(dist.TransformedDistribution):

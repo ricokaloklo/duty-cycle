@@ -42,7 +42,7 @@ class NetworkSimulator(Simulator):
         self.sep_char = sep_char
         self.register_params(self.components)
 
-    def initialize_disturbances(self, disturbances):
+    def initialize_disturbances(self, disturbances, disturbed_components):
         """
         Initialize external disturbances affecting the network.
 
@@ -50,9 +50,17 @@ class NetworkSimulator(Simulator):
         ----------
         disturbances : dict
             A dictionary where keys are disturbance names and values are disturbance simulator types.
+        disturbed_components : dict
+            A dictionary where keys are disturbance names and values are lists of component names affected by the disturbance.
         """
         self.disturbances = {name: simulator(dt=self.dt, nmax=self.nmax) for name, simulator in disturbances.items()}
         self.register_params(self.disturbances)
+        # Check if the disturbed components exist in the components
+        for disturbance_name, component_names in disturbed_components.items():
+            for component_name in component_names:
+                if component_name not in self.components:
+                    raise ValueError(f"Component '{component_name}' affected by disturbance '{disturbance_name}' is not in the network components.")
+        self.disturbed_components = disturbed_components
 
     def unpack_params(self, simulation_params, use_torch=True):
         """
