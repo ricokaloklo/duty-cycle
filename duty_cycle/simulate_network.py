@@ -2,7 +2,7 @@ import numpy as np
 
 from . import _UP, _DOWN, _UNDEF
 from .simulate import Simulator
-from .simulate_external import TeleseismicActivity
+from .simulate_external import GlobalExternalDisturbance
 
 class NetworkSimulator(Simulator):
     sep_char: str = '^'
@@ -26,9 +26,11 @@ class NetworkSimulator(Simulator):
         self.param_names = []
         self.param_labels = []
         self.components = {}
+        self.components_coords = {}
         self.disturbances = {}
+        self.disturbed_components = {}
 
-    def initialize_network(self, components, sep_char='^'):
+    def initialize_network(self, components, components_coords=None, sep_char='^'):
         """
         Initialize a network of components for simulation.
 
@@ -36,10 +38,15 @@ class NetworkSimulator(Simulator):
         ----------
         components : dict
             A dictionary where keys are component names and values are simulator types.
+        components_coords : dict, optional
+            A dictionary where keys are component names and values are
+            tuples of (latitude, longitude) for each component. Used for computing time delays
+            for global disturbances. By default None.
         sep_char : str, optional
             A separator character used in naming components, by default '^'.
         """
         self.components = {name: simulator(dt=self.dt, nmax=self.nmax) for name, simulator in components.items()}
+        self.components_coords = components_coords if components_coords is not None else {}
         self.sep_char = sep_char
         self.register_params(self.components)
 
@@ -113,47 +120,81 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
             output,
             dt,
             idx,
-            idx_lastchange_list,
-            cont_up_time_list,
-            cont_down_time_list,
+            idx_lastchange_dict,
+            cont_up_time_dict,
+            cont_down_time_dict,
     ):
-        pass
+        # Simulate each disturbance independently
+        for name, disturbance in self.disturbances.items():
+            output[name][idx], idx_lastchange_dict[name], cont_up_time_dict[name], cont_down_time_dict[name] = \
+                disturbance._simulate_step(
+                    output[name],
+                    dt,
+                    idx,
+                    idx_lastchange_dict[name],
+                    cont_up_time_dict[name],
+                    cont_down_time_dict[name],
+                )
+        
+        # Update the states of the components affected by disturbances
+        for disturbance_name, component_names in self.disturbed_components.items():
+            if output[disturbance_name][idx] == _DOWN:
+                continue # Disturbance is not active at this time step
+
+            # Check if the disturbance is GlobalExternalDisturbance
+            if isinstance(self.disturbances[disturbance_name], GlobalExternalDisturbance):
+                # Compute the time delays for each component
+                origin_coords = self.disturbances[disturbance_name].sample_origin_coords_from_file()
+                time_delay_steps = self.disturbances[disturbance_name].compute_time_delay_steps(
+                    (origin_coords["latitude"], origin_coords["longitude"]),
+                    {comp_name: (self.components_coords[comp_name]["latitude"], self.components_coords[comp_name]["longitude"]) for comp_name in component_names},
+                )
+                for component_name in component_names:
+                    # Check for index out-of-bounds error
+                    if idx + time_delay_steps[component_name] < self.nmax:
+                        output[component_name][idx + time_delay_steps[component_name]] = _DOWN
+            # Otherwise, apply disturbance immediately
+            else:
+                for component_name in component_names:
+                    output[component_name][idx] = _DOWN
+
+        return output, idx_lastchange_dict, cont_up_time_dict, cont_down_time_dict
 
     def _simulate_step_for_components(
             self,
             output,
             dt,
             idx,
-            idx_lastchange_list,
-            cont_up_time_list,
-            cont_down_time_list,
+            idx_lastchange_dict,
+            cont_up_time_dict,
+            cont_down_time_dict,
     ):
         pass
 
     def _simulate(
             self,
-            initial_state_list,
-            idx_lastchange_list,
-            cont_up_time_list,
-            cont_down_time_list,
+            initial_state_dict,
+            idx_lastchange_dict,
+            cont_up_time_dict,
+            cont_down_time_dict,
     ):
         output = {
             name: np.ones(self.nmax, dtype=int)*_UNDEF for name in list(self.components.keys()) + list(self.disturbances.keys())
         }
 
         for name, component in list(self.components.items()) + list(self.disturbances.items()):
-            # Initialize the output of each component with initial_state_list
-            if initial_state_list[name] is None:
-                initial_state_list[name] = component.default_initial_state
-            output[name][0] = initial_state_list[name]
+            # Initialize the output of each component with initial_state_dict
+            if initial_state_dict[name] is None:
+                initial_state_dict[name] = component.default_initial_state
+            output[name][0] = initial_state_dict[name]
 
             # Make a draw from the normal distribution if needed
-            if initial_state_list[name] == _UP:
-                if cont_up_time_list[name] is None:
-                    cont_up_time_list[name] = component.realize_cont_up_timescale()
-            elif initial_state_list[name] == _DOWN:
-                if cont_down_time_list[name] is None:
-                    cont_down_time_list[name] = component.realize_cont_down_timescale()
+            if initial_state_dict[name] == _UP:
+                if cont_up_time_dict[name] is None:
+                    cont_up_time_dict[name] = component.realize_cont_up_timescale()
+            elif initial_state_dict[name] == _DOWN:
+                if cont_down_time_dict[name] is None:
+                    cont_down_time_dict[name] = component.realize_cont_down_timescale()
             else:
                 raise ValueError("previous_state must be either _UP or _DOWN for {name}".format(name=name))
 
@@ -162,11 +203,20 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
         # NOTE We generate the simulated duty cycle sequentially
         for idx in range(1, self.nmax):
             # Simulate the disturbances first
-            pass
+            output, idx_lastchange_dict, cont_up_time_dict, cont_down_time_dict = \
+                self._simulate_step_for_disturbances(
+                    output,
+                    dt,
+                    idx,
+                    idx_lastchange_dict,
+                    cont_up_time_dict,
+                    cont_down_time_dict,
+                )
+            # Then simulate the components
 
         return output
 
-    def simulate_duty_cycle(self, simulation_params, initial_state_list=None, idx_lastchange_list=0, cont_up_time_list=None, cont_down_time_list=None):
+    def simulate_duty_cycle(self, simulation_params, initial_state_dict=None, idx_lastchange_dict=0, cont_up_time_dict=None, cont_down_time_dict=None):
         """
         Simulate the duty cycle of the network, with components having independent up/down segments.
 
@@ -174,14 +224,14 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
         ----------
         simulation_params : array-like
             An array or list of simulation parameters.
-        initial_state_list : int, None or list of int or list of None, optional
-            A list of initial states for each component.
-        idx_lastchange_list : int or list of int, optional
-            A list of indices of the last up state for each component, by default 0.
-        cont_up_time_list : float, None, list of float or list of None, optional
-            A list of continuous up times for each component, by default None.
-        cont_down_time_list : float, None, list of float or list of None, optional
-            A list of continuous down times for each component, by default None.
+        initial_state_dict : int or dict, optional
+            A dictionary containing the initial state for each component, by default None.
+        idx_lastchange_dict : int or dict, optional
+            A dictionary containing the index of the last change for each component, by default 0.
+        cont_up_time_dict : float, None, or dict, optional
+            A dictionary containing the continuous up times for each component, by default None.
+        cont_down_time_dict : float, None, or dict, optional
+            A dictionary containing the continuous down times for each component, by default None.
 
         Returns
         -------
@@ -191,26 +241,26 @@ class IndependentUpDownSegmentsNetworkSimulator(NetworkSimulator):
         self.unpack_params(simulation_params, use_torch=True)
 
         # Fill kwargs_dict for each component
-        kwargs_dict = {p: {} for p in ['initial_state_list', 'idx_lastchange_list', 'cont_up_time_list', 'cont_down_time_list']}
+        kwargs_dict = {p: {} for p in ['initial_state_dict', 'idx_lastchange_dict', 'cont_up_time_dict', 'cont_down_time_dict']}
         for name in list(self.components.keys()) + list(self.disturbances.keys()):
-            if isinstance(initial_state_list, list):
-                kwargs_dict['initial_state_list'][name] = initial_state_list[list(self.components.keys()).index(name)]
+            if isinstance(initial_state_dict, dict):
+                kwargs_dict['initial_state_dict'][name] = initial_state_dict[name]
             else:
-                kwargs_dict['initial_state_list'][name] = initial_state_list
+                kwargs_dict['initial_state_dict'][name] = initial_state_dict
 
-            if isinstance(idx_lastchange_list, list):
-                kwargs_dict['idx_lastchange_list'][name] = idx_lastchange_list[list(self.components.keys()).index(name)]
+            if isinstance(idx_lastchange_dict, dict):
+                kwargs_dict['idx_lastchange_dict'][name] = idx_lastchange_dict[name]
             else:
-                kwargs_dict['idx_lastchange_list'][name] = idx_lastchange_list
+                kwargs_dict['idx_lastchange_dict'][name] = idx_lastchange_dict
 
-            if isinstance(cont_up_time_list, list):
-                kwargs_dict['cont_up_time_list'][name] = cont_up_time_list[list(self.components.keys()).index(name)]
+            if isinstance(cont_up_time_dict, dict):
+                kwargs_dict['cont_up_time_dict'][name] = cont_up_time_dict[name]
             else:
-                kwargs_dict['cont_up_time_list'][name] = cont_up_time_list
+                kwargs_dict['cont_up_time_dict'][name] = cont_up_time_dict
 
-            if isinstance(cont_down_time_list, list):
-                kwargs_dict['cont_down_time_list'][name] = cont_down_time_list[list(self.components.keys()).index(name)]
+            if isinstance(cont_down_time_dict, dict):
+                kwargs_dict['cont_down_time_dict'][name] = cont_down_time_dict[name]
             else:
-                kwargs_dict['cont_down_time_list'][name] = cont_down_time_list
+                kwargs_dict['cont_down_time_dict'][name] = cont_down_time_dict
 
         return self._simulate(**kwargs_dict)
