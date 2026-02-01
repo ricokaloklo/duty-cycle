@@ -118,7 +118,7 @@ class IndependentUpDownSegments(Simulator):
         output,
         dt,
         idx,
-        idx_lastup,
+        idx_lastchange,
         cont_up_time,
         cont_down_time,
     ):
@@ -129,45 +129,45 @@ class IndependentUpDownSegments(Simulator):
             # In the previous time step, the detector was UP
 
             # Compute p_cont_up
-            # NOTE Here idx_lastup means the first index where the detector was UP
+            # NOTE Here idx_lastchange means the first index where the detector was UP
             if cont_up_time < 0:
                 p_cont_up = 0
             else:
-                p_cont_up = 1 - self.transition_prob_utd(idx, idx_lastup, dt, cont_up_time)
+                p_cont_up = 1 - self.transition_prob_utd(idx, idx_lastchange, dt, cont_up_time)
             if u < p_cont_up:
                 # In this time step, the detector remains UP
                 _state = _UP
             else:
                 # In this time step, the detector is no longer UP
                 _state = _DOWN
-                idx_lastup = idx # This is the LAST index that the detector was UP
+                idx_lastchange = idx # This is the LAST index that the detector was UP
                 # Make a draw from the normal distribution
                 cont_down_time = self.realize_cont_down_timescale()
         else:
             # In the previous time step, the detector is DOWN
 
             # Compute p_cont_down
-            # NOTE Here idx_lastup means the last index where the detector was UP
+            # NOTE Here idx_lastchange means the last index where the detector was UP
             if cont_down_time < 0:
                 p_cont_down = 0
             else:
-                p_cont_down = 1 - self.transition_prob_dtu(idx, idx_lastup, dt, cont_down_time)
+                p_cont_down = 1 - self.transition_prob_dtu(idx, idx_lastchange, dt, cont_down_time)
             if u < p_cont_down:
                 # In this time step, the detector remains DOWN
                 _state = _DOWN
             else:
                 # In this time step, the detector is no longer DOWN
                 _state = _UP
-                idx_lastup = idx
+                idx_lastchange = idx
                 # Make a draw from the normal distribution
                 cont_up_time = self.realize_cont_up_timescale()
 
-        return _state, idx_lastup, cont_up_time, cont_down_time
+        return _state, idx_lastchange, cont_up_time, cont_down_time
 
     def _simulate(
             self,
             initial_state=_UP,
-            idx_lastup=0,
+            idx_lastchange=0,
             cont_up_time=None,
             cont_down_time=None
         ):
@@ -178,7 +178,7 @@ class IndependentUpDownSegments(Simulator):
         ----------
         initial_state : int, optional
             The initial state of the detector. Either _UP or _DOWN.
-        idx_lastup : int, optional
+        idx_lastchange : int, optional
             The index of the last time the detector was up.
         cont_up_time : float or None, optional
             The contiguous up time to use. If None, a new contiguous up time is drawn.
@@ -208,11 +208,11 @@ class IndependentUpDownSegments(Simulator):
 
         # NOTE We generate the simulated duty cycle sequentially
         for idx in range(1, self.nmax):
-            output[idx], idx_lastup, cont_up_time, cont_down_time = self._simulate_step(
+            output[idx], idx_lastchange, cont_up_time, cont_down_time = self._simulate_step(
                 output,
                 dt,
                 idx,
-                idx_lastup,
+                idx_lastchange,
                 cont_up_time,
                 cont_down_time,
             )
@@ -252,18 +252,18 @@ class MemorylessMarkovChain(IndependentUpDownSegments):
     def realize_cont_down_timescale(self):
         return np.nan # Not used in this model
 
-    def transition_prob_utd(self, idx, idx_lastup, dt, cont_up_time):
+    def transition_prob_utd(self, idx, idx_lastchange, dt, cont_up_time):
         return self.params["p_utd"]
 
-    def transition_prob_dtu(self, idx, idx_lastup, dt, cont_down_time):
+    def transition_prob_dtu(self, idx, idx_lastchange, dt, cont_down_time):
         return self.params["p_dtu"]
 
-    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
+    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastchange=0, cont_up_time=None, cont_down_time=None):
         self.params = self.unpack_params(simulation_params, use_torch=True)
 
         return self._simulate(
             initial_state=initial_state,
-            idx_lastup=idx_lastup,
+            idx_lastchange=idx_lastchange,
             cont_up_time=cont_up_time,
             cont_down_time=cont_down_time,
         )
@@ -308,25 +308,25 @@ class WeibullVLMC(IndependentUpDownSegments):
     def realize_cont_down_timescale(self):
         return np.nan # Not used in this model
 
-    def transition_prob_utd(self, idx, idx_lastup, dt, cont_up_time):
-        idx_lastdead = int(np.floor(self.params["initial_deadtime_up"]/dt)) # This last index (relative to idx_lastup) where the detector is still dead
-        if (idx - idx_lastup) <= idx_lastdead:
+    def transition_prob_utd(self, idx, idx_lastchange, dt, cont_up_time):
+        idx_lastdead = int(np.floor(self.params["initial_deadtime_up"]/dt)) # This last index (relative to idx_lastchange) where the detector is still dead
+        if (idx - idx_lastchange) <= idx_lastdead:
             return 0 # No transition possible during dead time
         else:
             return 1 - np.exp(
-                -( ((idx-idx_lastup-idx_lastdead)*dt) / self.params["scale_up"] )**self.params["shape_up"] + ( ((idx-idx_lastup-idx_lastdead-1)*dt) / self.params["scale_up"] )**self.params["shape_up"]
+                -( ((idx-idx_lastchange-idx_lastdead)*dt) / self.params["scale_up"] )**self.params["shape_up"] + ( ((idx-idx_lastchange-idx_lastdead-1)*dt) / self.params["scale_up"] )**self.params["shape_up"]
             )
     
-    def transition_prob_dtu(self, idx, idx_lastup, dt, cont_down_time):
-        idx_lastdead = int(np.floor(self.params["initial_deadtime_down"]/dt)) # This last index (relative to idx_lastup) where the detector is still dead
-        if (idx - idx_lastup) <= idx_lastdead:
+    def transition_prob_dtu(self, idx, idx_lastchange, dt, cont_down_time):
+        idx_lastdead = int(np.floor(self.params["initial_deadtime_down"]/dt)) # This last index (relative to idx_lastchange) where the detector is still dead
+        if (idx - idx_lastchange) <= idx_lastdead:
             return 0 # No transition possible during dead time
         else:
             return 1 - np.exp(
-                -( ((idx-idx_lastup-idx_lastdead)*dt) / self.params["scale_down"] )**self.params["shape_down"] + ( ((idx-idx_lastup-idx_lastdead-1)*dt) / self.params["scale_down"] )**self.params["shape_down"]
+                -( ((idx-idx_lastchange-idx_lastdead)*dt) / self.params["scale_down"] )**self.params["shape_down"] + ( ((idx-idx_lastchange-idx_lastdead-1)*dt) / self.params["scale_down"] )**self.params["shape_down"]
             )
 
-    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastup=0, cont_up_time=None, cont_down_time=None):
+    def simulate_duty_cycle(self, simulation_params, initial_state=_UP, idx_lastchange=0, cont_up_time=None, cont_down_time=None):
         self.params = self.unpack_params(simulation_params, use_torch=True)
 
         # Sanity check
@@ -339,7 +339,7 @@ class WeibullVLMC(IndependentUpDownSegments):
 
         return self._simulate(
             initial_state=initial_state,
-            idx_lastup=idx_lastup,
+            idx_lastchange=idx_lastchange,
             cont_up_time=cont_up_time,
             cont_down_time=cont_down_time,
         )

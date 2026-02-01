@@ -26,10 +26,10 @@ class PoissonProcessExternalDisturbance(MemorylessMarkovChain):
     truncate_output: bool = False
     default_initial_state: int = _DOWN
 
-    def transition_prob_utd(self, idx, idx_lastup, dt, cont_up_time):
+    def transition_prob_utd(self, idx, idx_lastchange, dt, cont_up_time):
         return 1.0
 
-    def transition_prob_dtu(self, idx, idx_lastup, dt, cont_down_time):
+    def transition_prob_dtu(self, idx, idx_lastchange, dt, cont_down_time):
         return self.params["rate"] / self.nmax
 
 class TeleseismicActivity(PoissonProcessExternalDisturbance):
