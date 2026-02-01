@@ -23,7 +23,8 @@ class PoissonProcessExternalDisturbance(MemorylessMarkovChain):
     """
     param_names = ["rate"]
     param_labels = [r"$r$"]
-    truncate_output:bool = False
+    truncate_output: bool = False
+    default_initial_state: int = _DOWN
 
     def transition_prob_utd(self, idx, idx_lastup, dt, cont_up_time):
         return 1.0

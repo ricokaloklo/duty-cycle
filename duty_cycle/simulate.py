@@ -10,6 +10,7 @@ class Simulator:
     param_names = []
     param_labels = []
     truncate_output: bool = True
+    default_initial_state: int = _UP
 
     def __init__(self, dt, nmax=1000, random_seed=None, truncate_output=None):
         """
