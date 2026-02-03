@@ -34,6 +34,11 @@ def load_earthquake_catalog():
 
 # From https://github.com/pytorch/pytorch/issues/11412
 class LogUniform(dist.TransformedDistribution):
+    arg_constraints = {
+        "low": constraints.dependent,
+        "high": constraints.dependent,
+    }
+
     def __init__(self, low, high):
         if type(low) is not torch.Tensor:
             low = torch.tensor(low)
