@@ -9,3 +9,4 @@ from . import simulate_external
 from . import simulate_network
 from . import utils
 from . import infer
+from . import visualize

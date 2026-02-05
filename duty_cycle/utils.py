@@ -146,7 +146,7 @@ def generate_state_bit_timeseries_from_dataframe(df, state, start_time=None, end
 
     return output
 
-def convert_start_end_indices_to_duration(start_idx, end_idx, dt=1):
+def convert_start_end_indices_to_duration(start_idx, end_idx, dt):
     """
     Convert a start and end index to a duration.
 
@@ -156,7 +156,7 @@ def convert_start_end_indices_to_duration(start_idx, end_idx, dt=1):
         The start index.
     end_idx : int
         The end index.
-    dt : float, optional
+    dt : float
         The time step.
     
     Returns
