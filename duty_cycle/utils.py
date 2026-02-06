@@ -3,8 +3,10 @@ import pandas as pd
 import torch
 from torch import distributions as dist
 from torch.distributions import constraints
+from torch import nn
 import os, pathlib
 import json
+from sbi.neural_nets import embedding_nets
 
 from . import _UP, _DOWN
 
@@ -168,3 +170,38 @@ def convert_start_end_indices_to_duration(start_idx, end_idx, dt):
 
 def calculate_duty_factor(bit_ts):
     return len(bit_ts[bit_ts == _UP])/len(bit_ts)
+
+class MultivariateTimeSeriesTransformerEmbedding(nn.Module):
+    """
+    Wrapper: project N-D time series to d_model, then run TransformerEmbedding.
+
+    Input to forward: x with shape (batch, T, N) or (T, N).
+    Output: (batch, emb_dim)
+    """
+
+    def __init__(self, input_dim: int, transformer_cfg: dict):
+        super().__init__()
+
+        # Base transformer embedding (time-series mode: vit=False)
+        self.transformer = embedding_nets.TransformerEmbedding(transformer_cfg)
+
+        # Linear projection from N channels -> d_model per time step
+        self.proj = nn.Linear(input_dim, transformer_cfg["feature_space_dim"])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        x: (batch, T, N) or (T, N)
+        returns: (batch, emb_dim)
+        """
+        if x.ndim == 2:
+            # (T, N) -> (1, T, N)
+            x = x.unsqueeze(0)
+
+        # Project feature dimension N -> d_model
+        # Result: (batch, T, d_model)
+        x = self.proj(x)
+
+        # TransformerEmbedding in time-series mode expects (batch, seq_len, feature_space_dim)
+        # and returns (batch, final_emb_dimension).
+        z = self.transformer(x)
+        return z
