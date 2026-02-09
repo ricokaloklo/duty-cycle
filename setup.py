@@ -23,6 +23,7 @@ setuptools.setup(
         "bilby",
         "KDEpy",
         "obspy",
+        "tqdm",
     ],
     package_data={
         "duty_cycle": [

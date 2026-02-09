@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import torch
+import tqdm
 from sbi.inference import infer as sbi_infer
 from sbi.inference import NPE
 from sbi.neural_nets import posterior_nn
@@ -218,7 +219,6 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             self,
             method="SNPE",
             nsimulation=5000,
-            ncore=1,
             device="cpu",
         ):
         # Move embedding_net and prior to device
@@ -228,9 +228,13 @@ class EmbeddingNetworkInference(SimulationBasedInference):
         # Sample parameters from the prior and simulate data
         thetas = self.prior.sample((nsimulation,)).to(device)
         xs_list = []
-        for theta in thetas:
+
+        for theta in tqdm.tqdm(thetas):
             bit_ts_dict = self.simulator.simulate_duty_cycle(theta)
-            component_bit_ts = torch.stack([torch.Tensor(bit_ts_dict[name]) for name in self.simulator.components.keys()], dim=-1).to(device)
+            component_bit_ts = torch.stack(
+                [torch.Tensor(bit_ts_dict[name]) for name in self.simulator.components.keys()],
+                dim=-1,
+            )
             xs_list.append(component_bit_ts)
 
         # Stack into a single tensor: (nsimulation, T, ncomponent)
