@@ -226,7 +226,9 @@ class EmbeddingNetworkInference(SimulationBasedInference):
         self.prior.to(device)
 
         # Sample parameters from the prior and simulate data
-        thetas = self.prior.sample((nsimulation,)).to(device)
+        # NOTE: We always perform the simulation on CPU
+        # TODO: Implement multiprocessing to speed up the simulation if needed, for now there is no need
+        thetas = self.prior.sample((nsimulation,)).to(device="cpu")
         xs_list = []
 
         for theta in tqdm.tqdm(thetas):
