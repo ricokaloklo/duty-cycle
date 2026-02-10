@@ -4,7 +4,7 @@ import glob
 
 setuptools.setup(
     name="duty-cycle",
-    version="0.2.0",
+    version="0.2.1",
     description="Simulate duty cycles of a gravitational-wave detector network",
     long_description=Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
