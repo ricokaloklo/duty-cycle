@@ -260,9 +260,27 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             observations,
             device="cpu",
             nposterior=10000,
+            batch_size=8,
         ):
-        x_obs = torch.Tensor(observations).unsqueeze(0).to(device) # (1, T, ncomponent)
-        posterior_samples = self.trained_posterior.sample((nposterior,), x_obs).detach()
-        log_probs = self.trained_posterior.log_prob(posterior_samples, x_obs).detach()
+        # If observations is just (T, ncomponent), add a batch dimension
+        if len(observations.shape) == 2:
+            x_obs = torch.Tensor(observations).unsqueeze(0).to(device) # (1, T, ncomponent)
+        else:
+            x_obs = torch.Tensor(observations).to(device) # (batch_size, T, ncomponent)
+        self.trained_posterior.to(device)
 
-        return posterior_samples.cpu().numpy(), log_probs.cpu().numpy()
+        with torch.no_grad():
+            posterior_samples = self.trained_posterior.sample((nposterior,), x_obs).detach()
+        # To avoid using too much GPU memory, we compute the log_probs in batches
+        def batched_log_prob(posterior, samples, x_obs, batch_size=1024):
+            logps = []
+            with torch.no_grad():
+                for start in range(0, samples.shape[0], batch_size):
+                    end = start + batch_size
+                    lp = posterior.log_prob(samples[start:end], x_obs)
+                    logps.append(lp.detach().cpu())
+                    torch.cuda.empty_cache()
+            return torch.cat(logps, dim=0)
+        log_probs = batched_log_prob(self.trained_posterior, posterior_samples, x_obs, batch_size=min(batch_size, nposterior))
+
+        return posterior_samples.cpu().numpy(), log_probs
