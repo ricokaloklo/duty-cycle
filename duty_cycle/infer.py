@@ -220,6 +220,7 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             method="SNPE",
             nsimulation=5000,
             device="cpu",
+            batch_size=128,
         ):
         # Move embedding_net and prior to device
         self.embedding_net.to(device)
@@ -251,9 +252,9 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             )
 
             if device == "cpu":
-                self.trained_posterior = NPE(prior=self.prior, density_estimator=density_estimator, device="cpu").append_simulations(thetas, xs).train()
+                self.trained_posterior = NPE(prior=self.prior, density_estimator=density_estimator, device="cpu").append_simulations(thetas, xs).train(training_batch_size=batch_size)
             else:
-                self.trained_posterior = NPE(prior=self.prior, density_estimator=density_estimator, device=device).append_simulations(thetas, xs).train()
+                self.trained_posterior = NPE(prior=self.prior, density_estimator=density_estimator, device=device).append_simulations(thetas, xs).train(training_batch_size=batch_size)
         else:
             raise NotImplementedError(f"Method {method} not implemented yet.")
 
