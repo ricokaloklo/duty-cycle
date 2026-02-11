@@ -222,6 +222,20 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             device="cpu",
             batch_size=128,
         ):
+        """
+        Train the posterior using the simulator.
+
+        Parameters
+        ----------
+        method : str, optional
+            The inference method to use. Default is "SNPE".
+        nsimulation : int, optional
+            The number of simulations to use for training the posterior.
+        device : str, optional
+            The device to use for training the posterior. Default is "cpu". Use "cuda" for GPU acceleration if available.
+        batch_size : int, optional
+            The batch size to use for training the posterior. Default is 128.
+        """
         # Move embedding_net and prior to device
         self.embedding_net.to(device)
         self.prior.to(device)
@@ -265,6 +279,29 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             nposterior=10000,
             batch_size=8,
         ):
+        """
+        Make inferences on the parameters of the duty cycle model.
+        
+        Parameters
+        ----------
+        observations : tuple of array_like
+            A shape of (T, ncomponent) will be treated as a single observation,
+            while a shape of (batch_size, T, ncomponent) will be treated as a batch of observations.
+        device : str, optional
+            The device to use for inference. Default is "cpu". Use "cuda" for GPU acceleration if available.
+        nposterior : int, optional
+            The number of posterior samples to draw for each observation. Default is 10000.
+        batch_size : int, optional
+            The batch size to use for computing log probabilities. Default is 8. This is only
+            used when device is "cuda" to avoid using too much GPU memory.
+        
+        Returns
+        -------
+        posterior_samples : array_like
+            The posterior samples, with shape (batch_size, nposterior, parameter_dim).
+        log_probs : array_like
+            The log probabilities of the posterior samples, with shape (batch_size, nposterior).
+        """
         # If observations is just (T, ncomponent), add a batch dimension
         if len(observations.shape) == 2:
             x_obs = torch.Tensor(observations).unsqueeze(0).to(device) # (1, T, ncomponent)
