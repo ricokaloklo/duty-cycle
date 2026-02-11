@@ -76,7 +76,6 @@ class SummaryStatisticInference(SimulationBasedInference):
             ngridpoint=50,
             grid_range=(1e-2, 1),
             grid_spacing="log",
-            bounded=False,
         ):
         """
         Inference using summary statistics (histograms or KDEs) of the continuous up and down times.
@@ -99,8 +98,6 @@ class SummaryStatisticInference(SimulationBasedInference):
             The range of the grid for the summary statistics. Default is (1e-2, 1).
         grid_spacing : str, optional
             The spacing of the grid for the summary statistics. Options are "linear" or "log". Default is "log".
-        bounded : bool, optional
-            Whether the parameters are bounded. Default is False.
         """
         self.simulator = simulator
         self.simulator.truncate_output = True # To avoid artifact in the summary statistics due to truncation
@@ -213,7 +210,6 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             simulator,
             prior,
             embedding_net_kwargs={},
-            bounded=False,
         ):
         """
         Inference using an embedding network to learn summary statistics from time series data.
@@ -226,8 +222,6 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             The prior distribution over the parameters.
         embedding_net_kwargs : dict, optional
             The keyword arguments to pass to the embedding network.
-        bounded : bool, optional
-            Whether the parameters are bounded. Default is False.
         """
         self.simulator = simulator
         self.simulator.truncate_output = False # Such that the simulator always outputs the same length of time series
