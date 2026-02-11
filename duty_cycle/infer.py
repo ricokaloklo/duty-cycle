@@ -76,7 +76,32 @@ class SummaryStatisticInference(SimulationBasedInference):
             ngridpoint=50,
             grid_range=(1e-2, 1),
             grid_spacing="log",
+            bounded=False,
         ):
+        """
+        Inference using summary statistics (histograms or KDEs) of the continuous up and down times.
+
+        Parameters
+        ----------
+        simulator : Simulator
+            The simulator to use for generating data.
+        prior : torch.distributions.Distribution
+            The prior distribution over the parameters.
+        density_estimator : str, optional
+            The density estimator to use for the summary statistics. Options are "histogram" or "kde". Default is "kde".
+        density_estimator_kwargs : dict, optional
+            The keyword arguments to pass to the density estimator. Default is {}.
+        nsample : int, optional
+            The number of samples to draw from the simulator for each parameter set. Default is 1000.
+        ngridpoint : int, optional
+            The number of grid points to use for the summary statistics. Default is 50.
+        grid_range : tuple, optional
+            The range of the grid for the summary statistics. Default is (1e-2, 1).
+        grid_spacing : str, optional
+            The spacing of the grid for the summary statistics. Options are "linear" or "log". Default is "log".
+        bounded : bool, optional
+            Whether the parameters are bounded. Default is False.
+        """
         self.simulator = simulator
         self.simulator.truncate_output = True # To avoid artifact in the summary statistics due to truncation
         assert not isinstance(simulator, NetworkSimulator), "SummaryStatisticInference does not work for NetworkSimulator. Use EmbeddingNetworkInference instead."
@@ -188,7 +213,22 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             simulator,
             prior,
             embedding_net_kwargs={},
+            bounded=False,
         ):
+        """
+        Inference using an embedding network to learn summary statistics from time series data.
+
+        Parameters
+        ----------
+        simulator : Simulator
+            The simulator to use for generating data.
+        prior : torch.distributions.Distribution
+            The prior distribution over the parameters.
+        embedding_net_kwargs : dict, optional
+            The keyword arguments to pass to the embedding network.
+        bounded : bool, optional
+            Whether the parameters are bounded. Default is False.
+        """
         self.simulator = simulator
         self.simulator.truncate_output = False # Such that the simulator always outputs the same length of time series
         self.prior = prior
@@ -265,6 +305,7 @@ class EmbeddingNetworkInference(SimulationBasedInference):
                 z_score_y="none",
             )
 
+            # NPE is identical to SNPE = SNPE_C, which is the one we used also in SummaryStatisticInference
             if device == "cpu":
                 self.trained_posterior = NPE(prior=self.prior, density_estimator=density_estimator, device="cpu").append_simulations(thetas, xs).train(training_batch_size=batch_size)
             else:
