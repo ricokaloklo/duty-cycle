@@ -230,11 +230,11 @@ class EmbeddingNetworkInference(SimulationBasedInference):
         self.embedding_net_kwargs = dict(
             vit=False,                # time-series mode
             is_causal=True,           # Causal mask for time series
-            num_hidden_layers=3,      # Number of transformer layers
-            num_attention_heads=4,    # Number of attention heads
-            num_key_value_heads=4,    # Number of key-value heads (can be different from num_attention_heads)
-            feature_space_dim=64,     # Internal transformer dimension
-            final_emb_dimension=32,   # Final embedding dimension passed to the density estimator
+            num_hidden_layers=4,      # Number of transformer layers
+            num_attention_heads=8,    # Number of attention heads
+            num_key_value_heads=8,    # Number of key-value heads (can be different from num_attention_heads)
+            feature_space_dim=128,     # Internal transformer dimension
+            final_emb_dimension=64,   # Final embedding dimension passed to the density estimator
         )
         self.embedding_net_kwargs.update(embedding_net_kwargs)
 
@@ -247,7 +247,7 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             transformer_cfg=self.embedding_net_kwargs,
         )
 
-        self.trained_posterior = None
+        self.posterior_net = None
 
     def train(
             self,
@@ -289,7 +289,7 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             xs_list.append(component_bit_ts)
 
         # Stack into a single tensor: (nsimulation, T, ncomponent)
-        xs = torch.stack(xs_list, dim=0).to(device)
+        xs = torch.stack(xs_list, dim=0)
 
         if method == "SNPE":
             density_estimator = posterior_nn(
@@ -301,9 +301,11 @@ class EmbeddingNetworkInference(SimulationBasedInference):
 
             # NPE is identical to SNPE = SNPE_C, which is the one we used also in SummaryStatisticInference
             if device == "cpu":
-                self.trained_posterior = NPE(prior=self.prior, density_estimator=density_estimator, device="cpu").append_simulations(thetas, xs).train(training_batch_size=batch_size)
+                self.inference = NPE(prior=self.prior, density_estimator=density_estimator, device="cpu")
+                self.posterior_net = self.inference.append_simulations(thetas, xs).train(training_batch_size=batch_size)
             else:
-                self.trained_posterior = NPE(prior=self.prior, density_estimator=density_estimator, device=device).append_simulations(thetas, xs).train(training_batch_size=batch_size)
+                self.inference = NPE(prior=self.prior, density_estimator=density_estimator, device=device)
+                self.posterior_net = self.inference.append_simulations(thetas, xs).train(training_batch_size=batch_size)
         else:
             raise NotImplementedError(f"Method {method} not implemented yet.")
 
@@ -342,10 +344,11 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             x_obs = torch.Tensor(observations).unsqueeze(0).to(device) # (1, T, ncomponent)
         else:
             x_obs = torch.Tensor(observations).to(device) # (batch_size, T, ncomponent)
-        self.trained_posterior.to(device)
+        self.posterior_net.to(device)
+        trained_posterior = self.inference.build_posterior()
 
         with torch.no_grad():
-            posterior_samples = self.trained_posterior.sample((nposterior,), x_obs).detach()
+            posterior_samples = trained_posterior.sample((nposterior,), x_obs).detach()
         # To avoid using too much GPU memory, we compute the log_probs in batches
         def batched_log_prob(posterior, samples, x_obs, batch_size=1024):
             logps = []
@@ -356,6 +359,6 @@ class EmbeddingNetworkInference(SimulationBasedInference):
                     logps.append(lp.detach().cpu())
                     torch.cuda.empty_cache()
             return torch.cat(logps, dim=0)
-        log_probs = batched_log_prob(self.trained_posterior, posterior_samples, x_obs, batch_size=min(batch_size, nposterior))
+        log_probs = batched_log_prob(trained_posterior, posterior_samples, x_obs, batch_size=min(batch_size, nposterior))
 
         return posterior_samples.cpu().numpy(), log_probs
