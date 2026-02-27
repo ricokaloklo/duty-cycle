@@ -74,7 +74,6 @@ def visualize_posterior(
 
     g = plots.get_subplot_plotter(width_inch=9, scaling=False, rc_sizes=True)
     g.settings.figure_legend_frame = False
-    g.settings.title_limit_labels = False
     g.settings.legend_fontsize = 12
 
     g.triangle_plot(
