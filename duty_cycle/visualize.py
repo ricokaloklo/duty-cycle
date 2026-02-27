@@ -60,36 +60,29 @@ def visualize_duty_cycle(bit_ts, dt, use_tex=True):
 
 def visualize_posterior(
     posterior_samples,
+    names=None,
     labels=None,
-    use_tex=True,
     truths=None,
     **kwargs,
 ):
-    import corner
-    _default_kwargs = {
-        "label_kwargs": {"fontsize": 8},
-        "labelpad": 0.25,
-    }
-    _default_kwargs.update(kwargs)
+    import getdist
+    from getdist import plots
 
-    if use_tex:
-        plt.rcParams.update({
-            "text.usetex": True,
-        })
-    else:
-        plt.rcParams.update({
-            "text.usetex": False,
-        })
+    # Strip the '$' at the beginning and end of each label, if they exist
+    _labels = [ label[1:-1] if (isinstance(label, str) and label.startswith("$") and label.endswith("$")) else label for label in labels ] if labels is not None else None
+    samples = getdist.MCSamples(samples=posterior_samples, names=names, labels=_labels)
 
-    fig = plt.figure(dpi=300)
-    fig = corner.corner(
-        posterior_samples,
-        labels=labels,
-        truths=truths,
-        fig=fig,
-        **_default_kwargs,
+    g = plots.get_subplot_plotter(width_inch=9, scaling=False, rc_sizes=True)
+    g.settings.figure_legend_frame = False
+    g.settings.title_limit_labels = False
+    g.settings.legend_fontsize = 12
+
+    g.triangle_plot(
+        [samples],
+        **kwargs,
     )
-    for ax in fig.get_axes():
-        ax.tick_params(axis="both", which="major", labelsize=_default_kwargs["label_kwargs"]["fontsize"])
 
-    return fig
+    if truths is not None:
+        g.add_param_markers(truths, color="grey", ls="--", lw=1.2)
+
+    return g

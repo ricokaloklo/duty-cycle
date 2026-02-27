@@ -24,6 +24,7 @@ setuptools.setup(
         "KDEpy",
         "obspy",
         "tqdm",
+        "getdist",
     ],
     package_data={
         "duty_cycle": [
