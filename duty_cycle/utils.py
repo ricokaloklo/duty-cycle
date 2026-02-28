@@ -205,3 +205,38 @@ class MultivariateTimeSeriesTransformerEmbedding(nn.Module):
         # and returns (batch, final_emb_dimension).
         z = self.transformer(x)
         return z
+
+
+class FlattenedTrialTimeSeriesEmbedding(nn.Module):
+    """
+    Adapter for trial-based iid data.
+
+    Input is expected as a flattened per-trial tensor with shape
+    (batch, ntrial, T * ncomponent). The adapter reshapes each trial back to
+    (T, ncomponent), applies the trial embedding network, and returns
+    (batch, ntrial, emb_dim).
+    """
+
+    def __init__(self, trial_embedding_net: nn.Module, ntime: int, ncomponent: int):
+        super().__init__()
+        self.trial_embedding_net = trial_embedding_net
+        self.ntime = int(ntime)
+        self.ncomponent = int(ncomponent)
+        self.flat_dim = self.ntime * self.ncomponent
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.ndim == 2:
+            if x.shape[-1] != self.flat_dim:
+                raise ValueError(f"Expected flattened size {self.flat_dim}, got {x.shape[-1]}.")
+            x_reshaped = x.reshape(x.shape[0], self.ntime, self.ncomponent)
+            return self.trial_embedding_net(x_reshaped)
+
+        if x.ndim != 3:
+            raise ValueError(f"Expected tensor with 2 or 3 dims, got {x.ndim}.")
+        if x.shape[-1] != self.flat_dim:
+            raise ValueError(f"Expected flattened size {self.flat_dim}, got {x.shape[-1]}.")
+
+        batch_size, ntrial, _ = x.shape
+        x_reshaped = x.reshape(batch_size * ntrial, self.ntime, self.ncomponent)
+        embedded = self.trial_embedding_net(x_reshaped)
+        return embedded.reshape(batch_size, ntrial, -1)

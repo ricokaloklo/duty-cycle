@@ -1,3 +1,5 @@
+import multiprocessing as mp
+import os
 import pickle
 import numpy as np
 import torch
@@ -5,6 +7,7 @@ import tqdm
 from sbi.inference import infer as sbi_infer
 from sbi.inference import NPE
 from sbi.neural_nets import posterior_nn
+from sbi.neural_nets.embedding_nets import PermutationInvariantEmbedding
 
 from .density import (
     make_kdes_from_simulation,
@@ -13,8 +16,50 @@ from .density import (
     make_histograms_from_data,
 )
 from .simulate_network import NetworkSimulator
-from .utils import MultivariateTimeSeriesTransformerEmbedding
+from .utils import (
+    MultivariateTimeSeriesTransformerEmbedding,
+    FlattenedTrialTimeSeriesEmbedding,
+)
 from .visualize import visualize_posterior
+
+_MP_SIMULATOR = None
+_MP_COMPONENT_NAMES = None
+
+
+def _init_duty_cycle_worker(simulator, component_names):
+    global _MP_SIMULATOR
+    global _MP_COMPONENT_NAMES
+    _MP_SIMULATOR = simulator
+    _MP_COMPONENT_NAMES = component_names
+
+
+def _simulate_component_bit_ts(simulator, component_names, theta):
+    bit_ts_dict = simulator.simulate_duty_cycle(torch.as_tensor(theta))
+    return np.stack(
+        [np.asarray(bit_ts_dict[name], dtype=np.float32) for name in component_names],
+        axis=-1,
+    )
+
+
+def _simulate_duty_cycle_worker(theta):
+    return _simulate_component_bit_ts(_MP_SIMULATOR, _MP_COMPONENT_NAMES, theta)
+
+
+def _simulate_iid_trials_worker(task):
+    theta, ntrial, max_ntrial = task
+    ntrial = int(ntrial)
+    max_ntrial = int(max_ntrial)
+
+    first_trial = _simulate_component_bit_ts(_MP_SIMULATOR, _MP_COMPONENT_NAMES, theta)
+    flat_dim = first_trial.shape[0] * first_trial.shape[1]
+
+    trials = np.full((max_ntrial, flat_dim), np.nan, dtype=np.float32)
+    trials[0] = first_trial.reshape(-1)
+    for idx in range(1, ntrial):
+        trial = _simulate_component_bit_ts(_MP_SIMULATOR, _MP_COMPONENT_NAMES, theta)
+        trials[idx] = trial.reshape(-1)
+    return trials
+
 
 class SimulationBasedInference:
     @classmethod
@@ -210,6 +255,7 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             simulator,
             prior,
             embedding_net_kwargs={},
+            iid_embedding_kwargs={},
         ):
         """
         Inference using an embedding network to learn summary statistics from time series data.
@@ -222,6 +268,10 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             The prior distribution over the parameters.
         embedding_net_kwargs : dict, optional
             The keyword arguments to pass to the embedding network.
+        iid_embedding_kwargs : dict, optional
+            Keyword arguments for permutation-invariant aggregation used when
+            training with multiple iid trials. Supported keys are
+            aggregation_fn, num_layers, num_hiddens, and output_dim.
         """
         self.simulator = simulator
         self.simulator.truncate_output = False # Such that the simulator always outputs the same length of time series
@@ -239,15 +289,40 @@ class EmbeddingNetworkInference(SimulationBasedInference):
         self.embedding_net_kwargs.update(embedding_net_kwargs)
 
         self.ncomponent = 1
-        if isinstance(simulator, NetworkSimulator):
+        if isinstance(simulator, NetworkSimulator) or (hasattr(simulator, "components") and len(simulator.components) > 0):
             self.ncomponent = len(simulator.components)
 
-        self.embedding_net = MultivariateTimeSeriesTransformerEmbedding(
+        self.trial_embedding_net = MultivariateTimeSeriesTransformerEmbedding(
             input_dim=self.ncomponent,
             transformer_cfg=self.embedding_net_kwargs,
         )
+        self.embedding_net = self.trial_embedding_net
+        self.iid_embedding_kwargs = dict(
+            aggregation_fn="mean",
+            num_layers=2,
+            num_hiddens=128,
+            output_dim=self.embedding_net_kwargs["final_emb_dimension"],
+        )
+        self.iid_embedding_kwargs.update(iid_embedding_kwargs)
+        self.iid_mode = False
+        self.max_ntrial = 1
 
         self.posterior_net = None
+
+    def _build_iid_embedding_net(self):
+        trial_wrapper = FlattenedTrialTimeSeriesEmbedding(
+            trial_embedding_net=self.trial_embedding_net,
+            ntime=self.simulator.nmax,
+            ncomponent=self.ncomponent,
+        )
+        return PermutationInvariantEmbedding(
+            trial_net=trial_wrapper,
+            trial_net_output_dim=self.embedding_net_kwargs["final_emb_dimension"],
+            aggregation_fn=self.iid_embedding_kwargs["aggregation_fn"],
+            num_layers=self.iid_embedding_kwargs["num_layers"],
+            num_hiddens=self.iid_embedding_kwargs["num_hiddens"],
+            output_dim=self.iid_embedding_kwargs["output_dim"],
+        )
 
     def train(
             self,
@@ -255,6 +330,8 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             nsimulation=5000,
             device="cpu",
             batch_size=128,
+            ncore=1,
+            max_ntrial=1,
         ):
         """
         Train the posterior using the simulator.
@@ -269,27 +346,93 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             The device to use for training the posterior. Default is "cpu". Use "cuda" for GPU acceleration if available.
         batch_size : int, optional
             The batch size to use for training the posterior. Default is 128.
+        ncore : int, optional
+            The number of CPU processes to use for simulation. Set to 1 to disable multiprocessing.
+        max_ntrial : int, optional
+            Maximum number of iid trials simulated per parameter set. When
+            larger than 1, each parameter uses a random number of trials
+            between 1 and max_ntrial, and missing trials are NaN-padded.
         """
+        self.max_ntrial = max(1, int(max_ntrial))
+        self.iid_mode = self.max_ntrial > 1
+        if self.iid_mode:
+            self.embedding_net = self._build_iid_embedding_net()
+        else:
+            self.embedding_net = self.trial_embedding_net
+
         # Move embedding_net and prior to device
         self.embedding_net.to(device)
         self.prior.to(device)
 
         # Sample parameters from the prior and simulate data
         # NOTE: We always perform the simulation on CPU
-        # TODO: Implement multiprocessing to speed up the simulation if needed, for now there is no need
         thetas = self.prior.sample((nsimulation,)).to(device="cpu")
-        xs_list = []
+        component_names = tuple(self.simulator.components.keys())
+        ncore = max(1, int(ncore))
+        theta_values = thetas.detach().cpu().numpy()
 
-        for theta in tqdm.tqdm(thetas):
-            bit_ts_dict = self.simulator.simulate_duty_cycle(theta)
-            component_bit_ts = torch.stack(
-                [torch.Tensor(bit_ts_dict[name]) for name in self.simulator.components.keys()],
-                dim=-1,
-            )
-            xs_list.append(component_bit_ts)
+        if self.iid_mode:
+            flat_dim = self.simulator.nmax * self.ncomponent
+            trial_counts = torch.randint(1, self.max_ntrial + 1, (nsimulation,), device="cpu").numpy()
 
-        # Stack into a single tensor: (nsimulation, T, ncomponent)
-        xs = torch.stack(xs_list, dim=0)
+            if ncore == 1 or nsimulation < 2:
+                xs_values = np.full((nsimulation, self.max_ntrial, flat_dim), np.nan, dtype=np.float32)
+                for idx, theta in enumerate(tqdm.tqdm(theta_values)):
+                    ntrial = int(trial_counts[idx])
+                    for trial_idx in range(ntrial):
+                        component_bit_ts = _simulate_component_bit_ts(self.simulator, component_names, theta)
+                        xs_values[idx, trial_idx] = component_bit_ts.reshape(-1)
+            else:
+                nworker = min(ncore, nsimulation, os.cpu_count() or ncore)
+                chunksize = max(1, nsimulation // (nworker * 8))
+                tasks = [
+                    (theta_values[idx], int(trial_counts[idx]), self.max_ntrial)
+                    for idx in range(nsimulation)
+                ]
+                start_method = "fork" if "fork" in mp.get_all_start_methods() else "spawn"
+                mp_ctx = mp.get_context(start_method)
+
+                with mp_ctx.Pool(
+                    processes=nworker,
+                    initializer=_init_duty_cycle_worker,
+                    initargs=(self.simulator, component_names),
+                ) as pool:
+                    xs_values = list(
+                        tqdm.tqdm(
+                            pool.imap(_simulate_iid_trials_worker, tasks, chunksize=chunksize),
+                            total=nsimulation,
+                        )
+                    )
+                xs_values = np.stack(xs_values, axis=0)
+
+            xs = torch.from_numpy(xs_values)
+        else:
+            if ncore == 1 or nsimulation < 2:
+                xs_values = np.empty((nsimulation, self.simulator.nmax, self.ncomponent), dtype=np.float32)
+                for idx, theta in enumerate(tqdm.tqdm(theta_values)):
+                    component_bit_ts = _simulate_component_bit_ts(self.simulator, component_names, theta)
+                    xs_values[idx] = component_bit_ts
+            else:
+                nworker = min(ncore, nsimulation, os.cpu_count() or ncore)
+                chunksize = max(1, nsimulation // (nworker * 8))
+                start_method = "fork" if "fork" in mp.get_all_start_methods() else "spawn"
+                mp_ctx = mp.get_context(start_method)
+
+                with mp_ctx.Pool(
+                    processes=nworker,
+                    initializer=_init_duty_cycle_worker,
+                    initargs=(self.simulator, component_names),
+                ) as pool:
+                    xs_values = list(
+                        tqdm.tqdm(
+                            pool.imap(_simulate_duty_cycle_worker, theta_values, chunksize=chunksize),
+                            total=nsimulation,
+                        )
+                    )
+                xs_values = np.stack(xs_values, axis=0)
+
+            # Shape is (nsimulation, T, ncomponent).
+            xs = torch.from_numpy(xs_values)
 
         if method == "SNPE":
             density_estimator = posterior_nn(
@@ -298,14 +441,10 @@ class EmbeddingNetworkInference(SimulationBasedInference):
                 z_score_x="none",
                 z_score_y="none",
             )
-
             # NPE is identical to SNPE = SNPE_C, which is the one we used also in SummaryStatisticInference
-            if device == "cpu":
-                self.inference = NPE(prior=self.prior, density_estimator=density_estimator, device="cpu")
-                self.posterior_net = self.inference.append_simulations(thetas, xs).train(training_batch_size=batch_size)
-            else:
-                self.inference = NPE(prior=self.prior, density_estimator=density_estimator, device=device)
-                self.posterior_net = self.inference.append_simulations(thetas, xs).train(training_batch_size=batch_size)
+            self.inference = NPE(prior=self.prior, density_estimator=density_estimator, device=device)
+            append_kwargs = dict(exclude_invalid_x=False) if self.iid_mode else {}
+            self.posterior_net = self.inference.append_simulations(thetas, xs, **append_kwargs).train(training_batch_size=batch_size)
         else:
             raise NotImplementedError(f"Method {method} not implemented yet.")
 
@@ -322,8 +461,10 @@ class EmbeddingNetworkInference(SimulationBasedInference):
         Parameters
         ----------
         observations : tuple of array_like
-            A shape of (T, ncomponent) will be treated as a single observation,
-            while a shape of (batch_size, T, ncomponent) will be treated as a batch of observations.
+            If trained with max_ntrial=1, a shape of (T, ncomponent) is treated
+            as a single observation.
+            If trained with max_ntrial>1, provide either (T, ncomponent) for one
+            trial or (ntrial, T, ncomponent) for a variable number of iid trials.
         device : str, optional
             The device to use for inference. Default is "cpu". Use "cuda" for GPU acceleration if available.
         nposterior : int, optional
@@ -339,11 +480,36 @@ class EmbeddingNetworkInference(SimulationBasedInference):
         log_probs : array_like
             The log probabilities of the posterior samples, with shape (batch_size, nposterior).
         """
-        # If observations is just (T, ncomponent), add a batch dimension
-        if len(observations.shape) == 2:
-            x_obs = torch.Tensor(observations).unsqueeze(0).to(device) # (1, T, ncomponent)
+        observations = torch.as_tensor(observations, dtype=torch.float32)
+        if self.iid_mode:
+            flat_dim = self.simulator.nmax * self.ncomponent
+            x_obs = torch.full(
+                (1, self.max_ntrial, flat_dim),
+                torch.nan,
+                dtype=torch.float32,
+                device=device,
+            )
+            if observations.ndim == 2:
+                ntrial = 1
+                trials = observations.unsqueeze(0)
+            elif observations.ndim == 3:
+                ntrial = observations.shape[0]
+                trials = observations
+            else:
+                raise ValueError(
+                    "In iid mode, observations must have shape (T, ncomponent) or (ntrial, T, ncomponent)."
+                )
+            if ntrial > self.max_ntrial:
+                raise ValueError(
+                    f"Number of trials ({ntrial}) exceeds max_ntrial ({self.max_ntrial}) used during training."
+                )
+            x_obs[0, :ntrial] = trials.reshape(ntrial, flat_dim).to(device)
         else:
-            x_obs = torch.Tensor(observations).to(device) # (batch_size, T, ncomponent)
+            # If observations is just (T, ncomponent), add a batch dimension.
+            if observations.ndim == 2:
+                x_obs = observations.unsqueeze(0).to(device)  # (1, T, ncomponent)
+            else:
+                x_obs = observations.to(device)  # (batch_size, T, ncomponent)
         self.posterior_net.to(device)
         trained_posterior = self.inference.build_posterior()
 
