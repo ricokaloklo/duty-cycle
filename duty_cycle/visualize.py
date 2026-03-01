@@ -76,7 +76,7 @@ def visualize_posterior(
     g.settings.figure_legend_frame = False
     g.settings.legend_fontsize = 12
 
-    g.triangle_plot(
+    _ = g.triangle_plot(
         [samples],
         **kwargs,
     )
