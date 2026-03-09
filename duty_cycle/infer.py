@@ -17,10 +17,8 @@ from .density import (
 )
 from .simulate_network import NetworkSimulator
 from .utils import (
-    HybridBitSequenceTrialEmbedding,
-    MultivariateTimeSeriesTransformerEmbedding,
     FlattenedTrialTimeSeriesEmbedding,
-    RunLengthEventSetEmbedding,
+    RunLengthEventTransformerEmbedding,
 )
 from .visualize import visualize_posterior
 
@@ -278,8 +276,7 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             aggregation_fn, num_layers, num_hiddens, and output_dim.
         event_embedding_kwargs : dict, optional
             Keyword arguments controlling the per-trial run-length event
-            encoder. Supported keys are enabled, num_layers, num_hiddens,
-            output_dim, max_events, and fusion_num_hiddens.
+            transformer. Supported keys are max_events.
         """
         self.simulator = simulator
         self.simulator.truncate_output = False # Such that the simulator always outputs the same length of time series
@@ -300,38 +297,16 @@ class EmbeddingNetworkInference(SimulationBasedInference):
         if isinstance(simulator, NetworkSimulator) or (hasattr(simulator, "components") and len(simulator.components) > 0):
             self.ncomponent = len(simulator.components)
 
-        self.raw_trial_embedding_net = MultivariateTimeSeriesTransformerEmbedding(
-            input_dim=self.ncomponent,
-            transformer_cfg=self.embedding_net_kwargs,
-        )
         self.event_embedding_kwargs = dict(
-            enabled=True,
-            num_layers=2,
-            num_hiddens=64,
-            output_dim=self.embedding_net_kwargs["final_emb_dimension"],
-            max_events=self.simulator.nmax * self.ncomponent,
-            fusion_num_hiddens=self.embedding_net_kwargs["final_emb_dimension"],
+            max_events=None,
         )
         self.event_embedding_kwargs.update(event_embedding_kwargs)
-        if self.event_embedding_kwargs["enabled"]:
-            self.event_trial_embedding_net = RunLengthEventSetEmbedding(
-                ntime=self.simulator.nmax,
-                ncomponent=self.ncomponent,
-                num_layers=self.event_embedding_kwargs["num_layers"],
-                num_hiddens=self.event_embedding_kwargs["num_hiddens"],
-                output_dim=self.event_embedding_kwargs["output_dim"],
-                max_events=self.event_embedding_kwargs["max_events"],
-            )
-            self.trial_embedding_net = HybridBitSequenceTrialEmbedding(
-                raw_embedding_net=self.raw_trial_embedding_net,
-                event_embedding_net=self.event_trial_embedding_net,
-                raw_output_dim=self.embedding_net_kwargs["final_emb_dimension"],
-                event_output_dim=self.event_embedding_kwargs["output_dim"],
-                fusion_hidden_dim=self.event_embedding_kwargs["fusion_num_hiddens"],
-            )
-        else:
-            self.event_trial_embedding_net = None
-            self.trial_embedding_net = self.raw_trial_embedding_net
+        self.trial_embedding_net = RunLengthEventTransformerEmbedding(
+            ntime=self.simulator.nmax,
+            ncomponent=self.ncomponent,
+            transformer_cfg=self.embedding_net_kwargs,
+            max_events=self.event_embedding_kwargs["max_events"],
+        )
         self.embedding_net = self.trial_embedding_net
         self.iid_embedding_kwargs = dict(
             aggregation_fn="mean",

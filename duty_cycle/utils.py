@@ -207,57 +207,32 @@ class MultivariateTimeSeriesTransformerEmbedding(nn.Module):
         return z
 
 
-class RunLengthEventSetEmbedding(nn.Module):
+class RunLengthEventTransformerEmbedding(nn.Module):
     """
-    Encode a binary multivariate time series as a set of run-length events.
+    Encode a binary multivariate time series as a run-length event sequence and
+    process it with a transformer.
 
     Each event row contains the component id, state, normalized start index,
-    and normalized duration. The event rows are embedded independently with
-    an MLP and then pooled across the set.
+    and normalized duration. Rows are sorted by start index, padded per batch,
+    and masked before entering the transformer.
     """
 
     def __init__(
         self,
         ntime: int,
         ncomponent: int,
-        num_hiddens: int = 64,
-        num_layers: int = 2,
-        output_dim: int = 64,
+        transformer_cfg: dict,
         max_events: int | None = None,
     ):
         super().__init__()
         self.ntime = int(ntime)
         self.ncomponent = int(ncomponent)
-        self.max_events = int(max_events) if max_events is not None else self.ntime * self.ncomponent
+        self.max_events = int(max_events) if max_events is not None else None
         self.event_input_dim = self.ncomponent + 3
-        self.row_embedding = self._build_mlp(
-            input_dim=self.event_input_dim,
-            hidden_dim=num_hiddens,
-            output_dim=num_hiddens,
-            num_layers=num_layers,
-        )
-        self.set_projection = self._build_mlp(
-            input_dim=num_hiddens + 1,
-            hidden_dim=num_hiddens,
-            output_dim=output_dim,
-            num_layers=num_layers,
-        )
+        self.transformer = embedding_nets.TransformerEmbedding(transformer_cfg)
+        self.proj = nn.Linear(self.event_input_dim, transformer_cfg["feature_space_dim"])
 
-    @staticmethod
-    def _build_mlp(input_dim: int, hidden_dim: int, output_dim: int, num_layers: int) -> nn.Sequential:
-        num_layers = max(1, int(num_layers))
-        layers = []
-        if num_layers == 1:
-            layers.append(nn.Linear(input_dim, output_dim))
-            return nn.Sequential(*layers)
-
-        layers.extend([nn.Linear(input_dim, hidden_dim), nn.ReLU()])
-        for _ in range(num_layers - 2):
-            layers.extend([nn.Linear(hidden_dim, hidden_dim), nn.ReLU()])
-        layers.append(nn.Linear(hidden_dim, output_dim))
-        return nn.Sequential(*layers)
-
-    def _build_event_table(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def _build_event_batch(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if x.ndim == 2:
             x = x.unsqueeze(0)
         batch_size, ntime, ncomponent = x.shape
@@ -267,83 +242,59 @@ class RunLengthEventSetEmbedding(nn.Module):
             )
 
         x_binary = (x > 0.5).to(dtype=torch.long)
-        event_table = x.new_zeros((batch_size, self.max_events, self.event_input_dim))
-        event_mask = torch.zeros((batch_size, self.max_events), dtype=torch.bool, device=x.device)
         component_eye = torch.eye(self.ncomponent, dtype=x.dtype, device=x.device)
-        max_start = max(1, self.ntime - 1)
+        max_start = float(max(1, self.ntime - 1))
+        event_rows_per_sample = []
+        max_num_events = 1
 
         for batch_idx in range(batch_size):
-            write_idx = 0
+            row_blocks = []
+            sort_keys = []
             for component_idx in range(self.ncomponent):
-                if write_idx >= self.max_events:
-                    break
-
                 seq = x_binary[batch_idx, :, component_idx]
                 change_points = torch.nonzero(seq[1:] != seq[:-1], as_tuple=False).flatten() + 1
                 starts = torch.cat((seq.new_zeros(1), change_points))
                 stops = torch.cat((change_points, seq.new_tensor([self.ntime]))) - 1
                 durations = stops - starts + 1
                 states = seq.index_select(0, starts)
-
-                num_events = starts.numel()
-                num_store = min(num_events, self.max_events - write_idx)
-                if num_store == 0:
-                    continue
-
                 event_rows = torch.cat(
                     (
-                        component_eye[component_idx].unsqueeze(0).expand(num_store, -1),
-                        states[:num_store].unsqueeze(-1).to(dtype=x.dtype),
-                        starts[:num_store].unsqueeze(-1).to(dtype=x.dtype) / max_start,
-                        durations[:num_store].unsqueeze(-1).to(dtype=x.dtype) / self.ntime,
+                        component_eye[component_idx].unsqueeze(0).expand(starts.numel(), -1),
+                        states.unsqueeze(-1).to(dtype=x.dtype),
+                        starts.unsqueeze(-1).to(dtype=x.dtype) / max_start,
+                        durations.unsqueeze(-1).to(dtype=x.dtype) / self.ntime,
                     ),
                     dim=-1,
                 )
-                event_table[batch_idx, write_idx : write_idx + num_store] = event_rows
-                event_mask[batch_idx, write_idx : write_idx + num_store] = True
-                write_idx += num_store
+                row_blocks.append(event_rows)
+                sort_keys.append(starts.to(dtype=x.dtype) + component_idx / (self.ncomponent + 1.0))
 
-        return event_table, event_mask
+            sample_rows = torch.cat(row_blocks, dim=0)
+            sample_sort_keys = torch.cat(sort_keys, dim=0)
+            sample_rows = sample_rows[torch.argsort(sample_sort_keys)]
+            if self.max_events is not None:
+                sample_rows = sample_rows[: self.max_events]
+            event_rows_per_sample.append(sample_rows)
+            max_num_events = max(max_num_events, sample_rows.shape[0])
+
+        event_table = x.new_zeros((batch_size, max_num_events, self.event_input_dim))
+        attention_mask = x.new_zeros((batch_size, max_num_events))
+        for batch_idx, sample_rows in enumerate(event_rows_per_sample):
+            num_events = sample_rows.shape[0]
+            event_table[batch_idx, :num_events] = sample_rows
+            attention_mask[batch_idx, :num_events] = 1.0
+
+        return event_table, attention_mask
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        event_table, event_mask = self._build_event_table(x)
-        row_embeddings = self.row_embedding(event_table.reshape(-1, self.event_input_dim))
-        row_embeddings = row_embeddings.reshape(event_table.shape[0], self.max_events, -1)
-        row_embeddings = row_embeddings * event_mask.unsqueeze(-1)
-
-        valid_counts = event_mask.sum(dim=1, keepdim=True).clamp_min(1)
-        pooled = row_embeddings.sum(dim=1) / valid_counts.to(dtype=row_embeddings.dtype)
-        normalized_counts = valid_counts.to(dtype=row_embeddings.dtype) / self.max_events
-        return self.set_projection(torch.cat((pooled, normalized_counts), dim=-1))
-
-
-class HybridBitSequenceTrialEmbedding(nn.Module):
-    """
-    Fuse raw-sequence and run-length-event embeddings for a single trial.
-    """
-
-    def __init__(
-        self,
-        raw_embedding_net: nn.Module,
-        event_embedding_net: nn.Module,
-        raw_output_dim: int,
-        event_output_dim: int,
-        fusion_hidden_dim: int,
-    ):
-        super().__init__()
-        self.raw_embedding_net = raw_embedding_net
-        self.event_embedding_net = event_embedding_net
-        self.fusion_net = nn.Sequential(
-            nn.Linear(raw_output_dim + event_output_dim, fusion_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(fusion_hidden_dim, raw_output_dim),
+        event_table, attention_mask = self._build_event_batch(x)
+        # sbi's transformer cache compares attention masks with `==`, which breaks
+        # for multi-element tensors. Disable mask caching for variable-length events.
+        return self.transformer(
+            self.proj(event_table),
+            attention_mask=attention_mask,
+            cache_attention_mask=False,
         )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        raw_embedding = self.raw_embedding_net(x)
-        event_embedding = self.event_embedding_net(x)
-        fused = self.fusion_net(torch.cat((raw_embedding, event_embedding), dim=-1))
-        return raw_embedding + fused
 
 
 class FlattenedTrialTimeSeriesEmbedding(nn.Module):
