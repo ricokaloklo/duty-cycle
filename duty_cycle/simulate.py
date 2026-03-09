@@ -12,21 +12,20 @@ class Simulator:
     truncate_output: bool = True
     default_initial_state: int = _UP
 
-    def __init__(self, dt, nmax=1000, random_seed=None, truncate_output=None):
+    def __init__(self, nmax, random_seed=None, truncate_output=None):
         """
         Parameters
         ----------
-        dt : float
-            The time step of the simulation.
-        nmax : int, optional
+        nmax : int
             The maximum number of time steps to simulate.
         random_seed : int or None, optional
             The random seed to use for the simulation. If None, no seed is set.
         truncate_output : bool, optional
             Whether to truncate the output to the last UP/DOWN state change. By default True.
         """
-        self.dt = dt
+        assert type(nmax) is int and nmax > 0, "nmax must be a positive integer"
         self.nmax = nmax
+        self.dt = 1.0/nmax # Such that the duration is always 1.0, regardless of nmax
         self.params = None
         if truncate_output is not None:
             # Override truncate_output only if provided

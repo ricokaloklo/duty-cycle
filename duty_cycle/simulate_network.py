@@ -45,7 +45,7 @@ class NetworkSimulator(Simulator):
         sep_char : str, optional
             A separator character used in naming components, by default '^'.
         """
-        self.components = {name: simulator(dt=self.dt, nmax=self.nmax) for name, simulator in components.items()}
+        self.components = {name: simulator(nmax=self.nmax) for name, simulator in components.items()}
         self.components_coords = components_coords if components_coords is not None else {}
         self.sep_char = sep_char
         self.register_params(self.components)
@@ -61,7 +61,7 @@ class NetworkSimulator(Simulator):
         disturbed_components : dict
             A dictionary where keys are disturbance names and values are lists of component names affected by the disturbance.
         """
-        self.disturbances = {name: simulator(dt=self.dt, nmax=self.nmax) for name, simulator in disturbances.items()}
+        self.disturbances = {name: simulator(nmax=self.nmax) for name, simulator in disturbances.items()}
         self.register_params(self.disturbances)
         # Check if the disturbed components exist in the components
         for disturbance_name, component_names in disturbed_components.items():
