@@ -1,3 +1,4 @@
+import gzip
 import multiprocessing as mp
 import os
 import pickle
@@ -65,11 +66,13 @@ def _simulate_iid_trials_worker(task):
 class SimulationBasedInference:
     @classmethod
     def load_from_file(cls, filename):
-        with open(filename, "rb") as f:
+        open_fn = gzip.open if str(filename).endswith(".gz") else open
+        with open_fn(filename, "rb") as f:
             return pickle.load(f)
 
     def save_to_file(self, filename):
-        with open(filename, "wb") as f:
+        open_fn = gzip.open if str(filename).endswith(".gz") else open
+        with open_fn(filename, "wb") as f:
             pickle.dump(self, f)
 
     def plot_corner(
