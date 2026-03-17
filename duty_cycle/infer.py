@@ -343,9 +343,11 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             method="SNPE",
             nsimulation=5000,
             device="cpu",
+            data_device=None,
             batch_size=128,
             ncore=1,
             max_ntrial=10,
+            training_kwargs={},
         ):
         """
         Train the posterior using the simulator.
@@ -358,6 +360,8 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             The number of simulations to use for training the posterior.
         device : str, optional
             The device to use for training the posterior. Default is "cpu". Use "cuda" for GPU acceleration if available.
+        data_device : str or None, optional
+            The device to use for storing the simulated data. If None, use the same device as the posterior. Default is None.
         batch_size : int, optional
             The batch size to use for training the posterior. Default is 128.
         ncore : int, optional
@@ -368,6 +372,8 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             1..max_ntrial and missing trials are padded with NaNs.
             If max_ntrial > 1, iid mode with permutation-invariant embedding
             is enabled.
+        training_kwargs : dict, optional
+            Additional keyword arguments to pass to the inference.train() method.
         """
         self.max_ntrial = max(1, int(max_ntrial))
         self.iid_mode = self.max_ntrial > 1
@@ -375,6 +381,8 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             self.embedding_net = self._build_iid_embedding_net()
         else:
             self.embedding_net = self.trial_embedding_net
+
+        training_kwargs.update({"training_batch_size": batch_size})
 
         # Move embedding_net and prior to device
         self.embedding_net.to(device)
@@ -463,7 +471,8 @@ class EmbeddingNetworkInference(SimulationBasedInference):
                 thetas,
                 xs,
                 exclude_invalid_x=False,
-            ).train(training_batch_size=batch_size)
+                data_device=data_device,
+            ).train(**training_kwargs)
         else:
             raise NotImplementedError(f"Method {method} not implemented yet.")
 
