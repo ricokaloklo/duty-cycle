@@ -35,7 +35,7 @@ def _init_duty_cycle_worker(simulator, component_names):
 
 
 def _simulate_component_bit_ts(simulator, component_names, theta):
-    bit_ts_dict = simulator.simulate_duty_cycle(torch.as_tensor(theta))
+    bit_ts_dict = simulator.simulate_state_time_series(torch.as_tensor(theta))
     return np.stack(
         [np.asarray(bit_ts_dict[name], dtype=np.float32) for name in component_names],
         axis=-1,

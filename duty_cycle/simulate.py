@@ -67,7 +67,7 @@ class Simulator:
 
     def simulate_duty_cycle(self, simulation_params):
         """
-        Simulate the duty cycle of a detector.
+        Simulate the state time series of a detector.
 
         Parameters
         ----------
@@ -77,9 +77,12 @@ class Simulator:
         Returns
         -------
         output : array-like
-            The simulated duty cycle.
+            The simulated state time series.
         """
         raise NotImplementedError
+
+    def simulate_state_time_series(self, *args, **kwargs):
+        return self.simulate_duty_cycle(*args, **kwargs)
 
     def simulate_cont_up_down_times(self, simulation_params, nsample=1000):
         """
@@ -103,7 +106,7 @@ class Simulator:
         cont_down_times = []
 
         while len(cont_up_times) < nsample or len(cont_down_times) < nsample:
-            simulated_bit_ts = self.simulate_duty_cycle(simulation_params)
+            simulated_bit_ts = self.simulate_state_time_series(simulation_params)
             cont_up_time_idxs, cont_down_time_idxs = find_contiguous_up_and_down_segments(simulated_bit_ts)
 
             cont_up_times += [convert_start_end_indices_to_duration(*idxs, dt=self.dt) for idxs in cont_up_time_idxs]
