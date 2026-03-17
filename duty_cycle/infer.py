@@ -291,7 +291,7 @@ class EmbeddingNetworkInference(SimulationBasedInference):
             num_hidden_layers=4,      # Number of transformer layers
             num_attention_heads=8,    # Number of attention heads
             num_key_value_heads=8,    # Number of key-value heads (can be different from num_attention_heads)
-            feature_space_dim=128,     # Internal transformer dimension
+            feature_space_dim=128,    # Internal transformer dimension
             final_emb_dimension=64,   # Final embedding dimension passed to the density estimator
         )
         self.embedding_net_kwargs.update(embedding_net_kwargs)
