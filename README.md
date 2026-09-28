@@ -1,5 +1,8 @@
 # duty-cycle
 
+![license](https://img.shields.io/github/license/ricokaloklo/duty-cycle)
+[![GitHub release](https://img.shields.io/github/v/release/ricokaloklo/duty-cycle.svg)](https://github.com/ricokaloklo/duty-cycle/releases)
+
 Simulate duty cycles of a gravitational-wave detector network
 
 <!-- light mode
